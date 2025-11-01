@@ -7,7 +7,7 @@
 // Zalo App credentials - GET FROM https://developers.zalo.me/
 define('ZALO_APP_ID', 'YOUR_ZALO_APP_ID');
 define('ZALO_APP_SECRET', 'YOUR_ZALO_APP_SECRET');
-define('ZALO_CALLBACK_URL', 'http://localhost/rumi/pages/zalo-callback.php');
+define('ZALO_CALLBACK_URL', 'https://hoangminhmz.com/rummi/pages/zalo-callback.php');
 
 // Zalo API endpoints
 define('ZALO_AUTH_URL', 'https://oauth.zaloapp.com/v4/permission');

@@ -5,7 +5,7 @@
  */
 
 // Base URLs
-define('BASE_URL', 'http://localhost/rumi');
+define('BASE_URL', 'https://hoangminhmz.com/rummi');
 define('ASSETS_URL', BASE_URL . '/assets');
 define('UPLOADS_URL', ASSETS_URL . '/images/uploads');
 
