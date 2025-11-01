@@ -5,6 +5,7 @@
  */
 
 // Zalo App credentials - GET FROM https://developers.zalo.me/
+// QUAN TRỌNG: Thay YOUR_ZALO_APP_ID và YOUR_ZALO_APP_SECRET bằng credentials thật
 define('ZALO_APP_ID', 'YOUR_ZALO_APP_ID');
 define('ZALO_APP_SECRET', 'YOUR_ZALO_APP_SECRET');
 define('ZALO_CALLBACK_URL', 'https://hoangminhmz.com/rummi/pages/zalo-callback.php');
@@ -19,6 +20,12 @@ define('ZALO_USER_INFO_URL', 'https://graph.zalo.me/v2.0/me');
  * @return string
  */
 function getZaloLoginURL() {
+    // Check if constants are defined to avoid errors
+    if (!defined('ZALO_APP_ID') || ZALO_APP_ID === 'YOUR_ZALO_APP_ID') {
+        // Return placeholder URL if not configured
+        return '#zalo-not-configured';
+    }
+
     $params = [
         'app_id' => ZALO_APP_ID,
         'redirect_uri' => ZALO_CALLBACK_URL,
