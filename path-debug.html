@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>RUMI Path Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 900px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .box {
+            background: white;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #00D4AA;
+        }
+        h1 { color: #00D4AA; }
+        .success { color: #10B981; font-weight: bold; }
+        .error { color: #EF4444; font-weight: bold; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+        }
+        td {
+            padding: 8px;
+            border-bottom: 1px solid #e5e5e5;
+        }
+        td:first-child {
+            font-weight: bold;
+            width: 200px;
+        }
+        .code {
+            background: #f3f4f6;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔍 RUMI Path Debugger</h1>
+
+    <div class="box">
+        <h2 class="success">✅ Nếu bạn thấy trang này → HTML static works!</h2>
+    </div>
+
+    <div class="box">
+        <h3>📍 Test Links - Click để kiểm tra:</h3>
+        <ul>
+            <li><a href="debug.php">🔗 debug.php</a> - Test PHP trong cùng folder</li>
+            <li><a href="hello.php">🔗 hello.php</a> - Test file bạn đã tạo</li>
+            <li><a href="test.php">🔗 test.php</a> - Test file từ GitHub</li>
+            <li><a href="index.php">🔗 index.php</a> - RUMI landing page</li>
+            <li><a href="../direct-test.php">🔗 ../direct-test.php</a> - Test parent directory</li>
+        </ul>
+    </div>
+
+    <div class="box">
+        <h3>📋 Checklist - Đã làm chưa?</h3>
+        <ul>
+            <li>☐ Disable tất cả .htaccess files (rename thành .htaccess.disabled)</li>
+            <li>☐ Show hidden files trong cPanel Settings</li>
+            <li>☐ Tạo file debug.php (PHP) trong cùng folder với file này</li>
+            <li>☐ Check PHP version >= 8.1 trong cPanel</li>
+        </ul>
+    </div>
+
+    <div class="box">
+        <h3>🎯 Đường dẫn nên là:</h3>
+        <div class="code">
+            /public_html/rumi/path-debug.html ← File này<br>
+            /public_html/rumi/debug.php ← Tạo file này<br>
+            /public_html/rumi/hello.php ← File bạn đã tạo<br>
+            /public_html/rumi/test.php ← Từ GitHub
+        </div>
+    </div>
+
+    <div class="box">
+        <h3>⚠️ Nếu trang này hiện nhưng click links bị 404:</h3>
+        <ol>
+            <li><strong>Disable .htaccess:</strong> Rename tất cả .htaccess thành .htaccess.disabled</li>
+            <li><strong>Check PHP files tồn tại:</strong> Xem trong File Manager có files .php không</li>
+            <li><strong>Test PHP version:</strong> Vào cPanel → Select PHP Version → Chọn 8.1+</li>
+            <li><strong>Clear browser cache:</strong> Ctrl+F5 để refresh</li>
+        </ol>
+    </div>
+
+    <div class="box">
+        <h3>📸 Nếu vẫn không được - Chụp màn hình:</h3>
+        <ol>
+            <li>Trang này (path-debug.html đang works)</li>
+            <li>Kết quả khi click từng link ở trên</li>
+            <li>File Manager showing files trong /public_html/rumi/</li>
+            <li>cPanel Domains section (Document Root)</li>
+        </ol>
+    </div>
+</body>
+</html>
