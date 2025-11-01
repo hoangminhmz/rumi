@@ -1,0 +1,53 @@
+# RUMI - Git Ignore
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Database
+*.sql.gz
+database/backups/
+
+# Logs
+logs/*.log
+*.log
+
+# Uploads
+assets/images/uploads/*
+!assets/images/uploads/.gitkeep
+
+# OS Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Composer
+vendor/
+composer.lock
+
+# Node modules (if using build tools later)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Cache
+cache/*
+!cache/.gitkeep
+
+# Temporary files
+tmp/*
+!tmp/.gitkeep
+*.tmp
+*.temp
+
+# Session files
+sessions/*
+!sessions/.gitkeep
