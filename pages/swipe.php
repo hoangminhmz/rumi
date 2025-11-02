@@ -23,8 +23,18 @@ if (!$userModel->hasCompleteProfile(getCurrentUserId())) {
     redirect(BASE_URL . '/pages/profile-setup.php');
 }
 
-// Get search mode
-$searchMode = $currentUser['search_mode'] ?? 'find_roommate';
+// Get search mode - Check URL param first, then user preference
+$searchMode = $_GET['mode'] ?? $currentUser['search_mode'] ?? 'find_roommate';
+
+// Validate search mode
+if (!in_array($searchMode, ['find_roommate', 'find_room'])) {
+    $searchMode = 'find_roommate';
+}
+
+// Update user's search mode if changed via URL
+if (isset($_GET['mode']) && $searchMode !== $currentUser['search_mode']) {
+    $userModel->updateSearchMode(getCurrentUserId(), $searchMode);
+}
 
 // Get cards based on mode
 if ($searchMode === 'find_roommate') {
