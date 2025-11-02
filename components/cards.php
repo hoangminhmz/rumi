@@ -9,7 +9,7 @@
  * @param array $user
  */
 function renderUserCard($user) {
-    $avatar = $user['avatar'] ? getUploadURL($user['avatar']) : ASSETS_URL . '/images/default-avatar.png';
+    $avatar = $user['avatar'] ? getUploadURL($user['avatar']) : ASSETS_URL . '/images/default-avatar.svg';
     $preferences = $user['preferences'] ?? [];
     ?>
     <div class="swipe-card" data-user-id="<?= $user['id'] ?>">
@@ -74,7 +74,7 @@ function renderUserCard($user) {
  */
 function renderRoomCard($room) {
     $images = $room['images'] ?? [];
-    $firstImage = !empty($images) ? getUploadURL($images[0]) : ASSETS_URL . '/images/default-room.jpg';
+    $firstImage = !empty($images) ? getUploadURL($images[0]) : ASSETS_URL . '/images/default-room.svg';
     $amenities = $room['amenities'] ?? [];
     ?>
     <div class="swipe-card" data-room-id="<?= $room['id'] ?>">

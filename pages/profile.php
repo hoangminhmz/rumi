@@ -32,7 +32,7 @@ include __DIR__ . '/../components/header.php';
     <!-- Profile Card -->
     <div class="profile-card mb-4">
         <div class="profile-header"></div>
-        <img src="<?= $currentUser['avatar'] ? getUploadURL($currentUser['avatar']) : ASSETS_URL . '/images/default-avatar.png' ?>"
+        <img src="<?= $currentUser['avatar'] ? getUploadURL($currentUser['avatar']) : ASSETS_URL . '/images/default-avatar.svg' ?>"
              alt="Avatar" class="profile-avatar">
 
         <div class="profile-body">
@@ -90,7 +90,7 @@ include __DIR__ . '/../components/header.php';
             <div class="room-card-images">
                 <?php
                 $images = $room['images'] ?? [];
-                $firstImage = !empty($images) ? getUploadURL($images[0]) : ASSETS_URL . '/images/default-room.jpg';
+                $firstImage = !empty($images) ? getUploadURL($images[0]) : ASSETS_URL . '/images/default-room.svg';
                 ?>
                 <img src="<?= e($firstImage) ?>" alt="<?= e($room['title']) ?>" class="room-card-img">
                 <div class="room-card-price"><?= formatPrice($room['price']) ?></div>

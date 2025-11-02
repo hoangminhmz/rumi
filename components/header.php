@@ -72,7 +72,7 @@ $pageTitle = $pageTitle ?? 'RUMI';
                 <?php if ($currentUser): ?>
                 <div class="d-flex align-center gap-3">
                     <span class="text-secondary"><?= e($currentUser['name']) ?></span>
-                    <img src="<?= $currentUser['avatar'] ? getUploadURL($currentUser['avatar']) : ASSETS_URL . '/images/default-avatar.png' ?>"
+                    <img src="<?= $currentUser['avatar'] ? getUploadURL($currentUser['avatar']) : ASSETS_URL . '/images/default-avatar.svg' ?>"
                          alt="Avatar"
                          style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
                 </div>

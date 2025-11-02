@@ -313,7 +313,7 @@ function getMatchedUserAvatar($match, $currentUserId) {
         $avatar = $match['user1_avatar'];
     }
 
-    return $avatar ? getUploadURL($avatar) : ASSETS_URL . '/images/default-avatar.png';
+    return $avatar ? getUploadURL($avatar) : ASSETS_URL . '/images/default-avatar.svg';
 }
 
 /**

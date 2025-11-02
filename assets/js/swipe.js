@@ -144,6 +144,8 @@
                 is_like: isLike
             };
 
+            console.log('Sending swipe:', { endpoint, data });
+
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
@@ -153,13 +155,21 @@
             });
 
             const result = await response.json();
+            console.log('Swipe response:', result);
 
-            if (result.success && result.data.matched) {
+            if (!result.success) {
+                console.error('Swipe failed:', result.message);
+                alert('Lỗi: ' + result.message);
+                return;
+            }
+
+            if (result.data.matched) {
                 showMatchModal(result.data.match);
             }
 
         } catch (error) {
             console.error('Swipe error:', error);
+            alert('Lỗi khi swipe. Vui lòng thử lại.');
         }
     }
 
@@ -174,8 +184,8 @@
         const avatar2 = document.getElementById('matchAvatar2');
         const matchName = document.getElementById('matchName');
 
-        if (avatar1) avatar1.src = matchData.user1_avatar || `${window.ASSETS_URL}/images/default-avatar.png`;
-        if (avatar2) avatar2.src = matchData.user2_avatar || `${window.ASSETS_URL}/images/default-avatar.png`;
+        if (avatar1) avatar1.src = matchData.user1_avatar || `${window.ASSETS_URL}/images/default-avatar.svg`;
+        if (avatar2) avatar2.src = matchData.user2_avatar || `${window.ASSETS_URL}/images/default-avatar.svg`;
         if (matchName) matchName.textContent = matchData.matched_user_name;
 
         modal.style.display = 'flex';

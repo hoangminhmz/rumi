@@ -70,8 +70,8 @@ try {
 
             $matchData = [
                 'match_id' => $matchId,
-                'user1_avatar' => $matchInfo['user1_avatar'] ? getUploadURL($matchInfo['user1_avatar']) : ASSETS_URL . '/images/default-avatar.png',
-                'user2_avatar' => $matchInfo['user2_avatar'] ? getUploadURL($matchInfo['user2_avatar']) : ASSETS_URL . '/images/default-avatar.png',
+                'user1_avatar' => $matchInfo['user1_avatar'] ? getUploadURL($matchInfo['user1_avatar']) : ASSETS_URL . '/images/default-avatar.svg',
+                'user2_avatar' => $matchInfo['user2_avatar'] ? getUploadURL($matchInfo['user2_avatar']) : ASSETS_URL . '/images/default-avatar.svg',
                 'matched_user_name' => $targetUser['name']
             ];
 

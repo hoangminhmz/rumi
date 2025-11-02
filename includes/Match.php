@@ -105,10 +105,10 @@ class Match {
             $stmt = $this->db->prepare("
                 SELECT m.*,
                     u1.name as user1_name, u1.avatar as user1_avatar,
-                    u1.age as user1_age, u1.gender as user1_gender,
+                    u1.age as user1_age, u1.gender as user1_gender, u1.phone as user1_phone,
                     d1.name as user1_district,
                     u2.name as user2_name, u2.avatar as user2_avatar,
-                    u2.age as user2_age, u2.gender as user2_gender,
+                    u2.age as user2_age, u2.gender as user2_gender, u2.phone as user2_phone,
                     d2.name as user2_district,
                     r.title as room_title, r.price as room_price
                 FROM matches m
