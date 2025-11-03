@@ -23,16 +23,11 @@ if (!$userModel->hasCompleteProfile(getCurrentUserId())) {
 }
 
 // Get search mode
-$searchMode = $_GET['mode'] ?? $currentUser['search_mode'] ?? 'find_roommate';
+$searchMode = $_GET['mode'] ?? 'find_roommate';
 
 // Validate search mode
 if (!in_array($searchMode, ['find_roommate', 'find_room'])) {
     $searchMode = 'find_roommate';
-}
-
-// Update user's search mode if changed via URL
-if (isset($_GET['mode']) && $searchMode !== $currentUser['search_mode']) {
-    $userModel->updateSearchMode(getCurrentUserId(), $searchMode);
 }
 
 // Get cards based on mode

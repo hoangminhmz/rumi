@@ -43,14 +43,10 @@ try {
     }
 
     echo "<!-- Getting search mode -->\n";
-    $searchMode = $_GET['mode'] ?? $currentUser['search_mode'] ?? 'find_roommate';
+    $searchMode = $_GET['mode'] ?? 'find_roommate';
 
     if (!in_array($searchMode, ['find_roommate', 'find_room'])) {
         $searchMode = 'find_roommate';
-    }
-
-    if (isset($_GET['mode']) && $searchMode !== $currentUser['search_mode']) {
-        $userModel->updateSearchMode(getCurrentUserId(), $searchMode);
     }
 
     echo "<!-- Getting cards for mode: $searchMode -->\n";
