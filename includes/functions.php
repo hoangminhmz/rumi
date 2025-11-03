@@ -413,15 +413,6 @@ function e($text) {
 }
 
 /**
- * Format price in Vietnamese Dong
- * @param int|float $price
- * @return string
- */
-function formatPrice($price) {
-    return number_format($price, 0, ',', '.') . 'đ';
-}
-
-/**
  * Truncate text to specified length
  * @param string $text
  * @param int $length
