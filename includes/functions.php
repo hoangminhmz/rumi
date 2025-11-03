@@ -413,6 +413,29 @@ function e($text) {
 }
 
 /**
+ * Format price in Vietnamese Dong
+ * @param int|float $price
+ * @return string
+ */
+function formatPrice($price) {
+    return number_format($price, 0, ',', '.') . 'đ';
+}
+
+/**
+ * Truncate text to specified length
+ * @param string $text
+ * @param int $length
+ * @param string $suffix
+ * @return string
+ */
+function truncate($text, $length = 100, $suffix = '...') {
+    if (mb_strlen($text) <= $length) {
+        return $text;
+    }
+    return mb_substr($text, 0, $length) . $suffix;
+}
+
+/**
  * Include view file với data
  * @param string $view Path to view file
  * @param array $data Variables to extract
