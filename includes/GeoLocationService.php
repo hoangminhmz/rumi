@@ -12,8 +12,8 @@ class GeoLocationService {
      * Constructor
      */
     public function __construct() {
-        global $db;
-        $this->db = $db;
+        // Use getDB() instead of global $db to ensure proper connection
+        $this->db = getDB();
 
         // Get API key from constants or config
         $this->apiKey = defined('MAPBOX_API_KEY') ? MAPBOX_API_KEY : '';
