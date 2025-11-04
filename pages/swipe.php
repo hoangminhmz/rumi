@@ -9,12 +9,15 @@ require_once __DIR__ . '/../config/constants.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_once __DIR__ . '/../includes/User.php';
 require_once __DIR__ . '/../includes/Room.php';
+require_once __DIR__ . '/../includes/Match.php';
+require_once __DIR__ . '/../components/empty-state-locked.php';
 
 startSession();
 requireLogin();
 
 $userModel = new User();
 $roomModel = new Room();
+$matchModel = new Match();
 $currentUser = $userModel->getById(getCurrentUserId());
 
 // Check profile complete
@@ -22,7 +25,7 @@ if (!$userModel->hasCompleteProfile(getCurrentUserId())) {
     redirect(BASE_URL . '/pages/profile-setup.php');
 }
 
-// Get search mode
+// Get search mode (what tab user is viewing)
 $searchMode = $_GET['mode'] ?? 'find_roommate';
 
 // Validate search mode
@@ -30,10 +33,43 @@ if (!in_array($searchMode, ['find_roommate', 'find_room'])) {
     $searchMode = 'find_roommate';
 }
 
-// Get cards based on mode
+// Get user's preference mode (what they chose to do first)
+$userMode = $currentUser['search_mode'] ?? 'find_roommate_first';
+
+// Initialize cards array and locked state
+$cards = [];
+$isLocked = false;
+
+// ============================================
+// TWO-STAGE MATCHING LOGIC
+// ============================================
+
 if ($searchMode === 'find_roommate') {
-    $cards = $userModel->getPotentialMatches(getCurrentUserId());
-} else {
+    // ========== USER IS VIEWING ROOMMATE TAB ==========
+
+    if ($userMode === 'find_room_first') {
+        // User chose find_room_first, so check if they can access roommate tab
+        $canAccess = $userModel->canAccessRoommateTab(getCurrentUserId());
+
+        if (!$canAccess) {
+            // LOCKED: User hasn't liked any rooms yet
+            $isLocked = true;
+        } else {
+            // UNLOCKED: Get users who liked same rooms
+            $likedRoomIds = $userModel->getLikedRoomIds(getCurrentUserId());
+            $cards = $matchModel->getUsersWhoLikedSameRooms(
+                getCurrentUserId(),
+                $likedRoomIds
+            );
+        }
+    } else {
+        // Normal find_roommate_first mode - always accessible
+        $cards = $userModel->getPotentialMatches(getCurrentUserId());
+    }
+
+} elseif ($searchMode === 'find_room') {
+    // ========== USER IS VIEWING ROOM TAB ==========
+
     // Decode user preferences for room filtering
     $userPreferences = is_string($currentUser['preferences'])
         ? json_decode($currentUser['preferences'], true)
@@ -43,7 +79,7 @@ if ($searchMode === 'find_roommate') {
         $userPreferences = [];
     }
 
-    // Override preferences with URL params if present
+    // Override preferences with URL params if present (from filter)
     if (isset($_GET['budget_min'])) {
         $userPreferences['budget_min'] = (int)$_GET['budget_min'];
     }
@@ -63,11 +99,30 @@ if ($searchMode === 'find_roommate') {
         $userPreferences['pets'] = $_GET['pets'] === '1';
     }
 
-    $cards = $roomModel->getPotentialRooms(
-        getCurrentUserId(),
-        $currentUser['district_id'],
-        $userPreferences
-    );
+    if ($userMode === 'find_roommate_first') {
+        // User chose find_roommate_first, so check if they can access room tab
+        $canAccess = $userModel->canAccessRoomTab(getCurrentUserId());
+
+        if (!$canAccess) {
+            // LOCKED: User hasn't matched with anyone yet
+            $isLocked = true;
+        } else {
+            // UNLOCKED: Get rooms suitable for user + all their matches
+            $matchedUserIds = $matchModel->getMatchedUserIds(getCurrentUserId());
+            $cards = $roomModel->getRoomsForAllMatches(
+                getCurrentUserId(),
+                $matchedUserIds,
+                $userPreferences
+            );
+        }
+    } else {
+        // Normal find_room_first mode - always accessible
+        $cards = $roomModel->getPotentialRooms(
+            getCurrentUserId(),
+            $currentUser['district_id'],
+            $userPreferences
+        );
+    }
 }
 
 $pageTitle = 'Tìm kiếm';
@@ -373,7 +428,12 @@ include __DIR__ . '/../components/header.php';
 
     <!-- Card Container -->
     <div id="cardContainer">
-        <?php if (empty($cards)): ?>
+        <?php if ($isLocked): ?>
+            <?php
+            // Show locked state
+            renderLockedTabState($userMode, $searchMode);
+            ?>
+        <?php elseif (empty($cards)): ?>
             <div class="empty-state">
                 <svg class="empty-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
