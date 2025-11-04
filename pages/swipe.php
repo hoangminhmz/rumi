@@ -153,14 +153,23 @@ include __DIR__ . '/../components/header.php';
     transition: all 0.2s;
 }
 
-/* Single Large Card */
+/* Single Large Card - Optimized for Viewport */
 .profile-card {
     background: white;
     border-radius: 20px;
     box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
     overflow: hidden;
     margin-bottom: 1.5rem;
+    max-height: calc(100vh - 200px);
+    display: flex;
+    flex-direction: column;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+.profile-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
 }
 
 .profile-card.animate-out-left {
@@ -201,17 +210,20 @@ include __DIR__ . '/../components/header.php';
     }
 }
 
-/* Card Image */
+/* Card Image - Optimized Height */
 .profile-card-image {
     width: 100%;
-    height: 350px;
+    height: min(45vh, 320px);
     object-fit: cover;
     display: block;
+    flex-shrink: 0;
 }
 
 /* Card Content */
 .profile-card-content {
     padding: 1.5rem;
+    flex: 1;
+    overflow-y: auto;
 }
 
 .profile-card-header {
@@ -589,6 +601,261 @@ include __DIR__ . '/../components/header.php';
 include __DIR__ . '/../components/filter-modal-v2.php';
 ?>
 
+<!-- Card Detail Modal -->
+<div id="detailModal" class="detail-modal" style="display: none;">
+    <div class="detail-modal-content">
+        <!-- Close Button -->
+        <button class="detail-modal-close" onclick="closeDetailModal()">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+
+        <!-- Image Gallery -->
+        <div class="detail-image-gallery" id="detailImageGallery">
+            <!-- Images will be dynamically inserted -->
+        </div>
+
+        <!-- Content Scrollable Area -->
+        <div class="detail-content" id="detailContent">
+            <!-- Content will be dynamically inserted -->
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="detail-actions">
+            <button class="detail-action-btn detail-btn-pass" id="detailBtnPass">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+                <span>Pass</span>
+            </button>
+            <button class="detail-action-btn detail-btn-like" id="detailBtnLike">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                </svg>
+                <span>Like</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Detail Modal */
+.detail-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: white;
+    z-index: 10000;
+    display: flex;
+    flex-direction: column;
+    animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+    from {
+        transform: translateY(100%);
+    }
+    to {
+        transform: translateY(0);
+    }
+}
+
+.detail-modal-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.detail-modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    z-index: 10;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.5);
+    border: none;
+    color: white;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.detail-modal-close:hover {
+    background: rgba(0, 0, 0, 0.8);
+    transform: scale(1.1);
+}
+
+.detail-modal-close svg {
+    width: 24px;
+    height: 24px;
+}
+
+/* Image Gallery */
+.detail-image-gallery {
+    position: relative;
+    width: 100%;
+    height: 50vh;
+    overflow: hidden;
+    background: #000;
+}
+
+.detail-gallery-track {
+    display: flex;
+    height: 100%;
+    transition: transform 0.3s ease-out;
+}
+
+.detail-gallery-image {
+    flex-shrink: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.detail-gallery-dots {
+    position: absolute;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 0.5rem;
+}
+
+.detail-gallery-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.detail-gallery-dot.active {
+    background: white;
+    width: 24px;
+    border-radius: 4px;
+}
+
+/* Content Area */
+.detail-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.5rem;
+    padding-bottom: 120px;
+}
+
+.detail-title {
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--color-gray-900);
+}
+
+.detail-location {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-gray-600);
+    margin-bottom: 1rem;
+}
+
+.detail-location svg {
+    width: 18px;
+    height: 18px;
+}
+
+.detail-bio {
+    color: var(--color-gray-700);
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+.detail-section {
+    margin-bottom: 1.5rem;
+}
+
+.detail-section-title {
+    font-weight: 600;
+    color: var(--color-gray-800);
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+}
+
+.detail-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.detail-tag {
+    padding: 0.5rem 1rem;
+    background: #f3f4f6;
+    border-radius: 20px;
+    font-size: 0.85rem;
+    color: var(--color-gray-700);
+}
+
+/* Action Buttons */
+.detail-actions {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 1rem;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    gap: 1rem;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+}
+
+.detail-action-btn {
+    flex: 1;
+    padding: 1rem;
+    border: none;
+    border-radius: 12px;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.detail-action-btn svg {
+    width: 24px;
+    height: 24px;
+}
+
+.detail-btn-pass {
+    background: #f3f4f6;
+    color: #6b7280;
+}
+
+.detail-btn-pass:hover {
+    background: #e5e7eb;
+}
+
+.detail-btn-like {
+    background: var(--color-primary);
+    color: white;
+}
+
+.detail-btn-like:hover {
+    background: var(--color-accent);
+    transform: scale(1.05);
+}
+</style>
+
 <?php
 // Pass remaining cards as JSON
 $remainingCards = array_slice($cards, 1);
@@ -855,6 +1122,256 @@ function escapeHtml(text) {
 }
 
 // Filter modal logic is now handled in filter-modal-v2.php component
+
+// ===== CARD DETAIL MODAL =====
+let currentDetailCard = null;
+let currentGalleryIndex = 0;
+
+// Add click handlers to cards
+document.addEventListener('click', (e) => {
+    const card = e.target.closest('.profile-card');
+    if (card && !e.target.closest('.action-btn')) {
+        openDetailModal(card);
+    }
+});
+
+function openDetailModal(card) {
+    currentDetailCard = card;
+    const modal = document.getElementById('detailModal');
+    const cardData = SEARCH_MODE === 'find_roommate'
+        ? getCardUserData(card)
+        : getCardRoomData(card);
+
+    renderDetailModal(cardData);
+    modal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeDetailModal() {
+    const modal = document.getElementById('detailModal');
+    modal.style.display = 'none';
+    document.body.style.overflow = '';
+    currentDetailCard = null;
+    currentGalleryIndex = 0;
+}
+
+function getCardUserData(card) {
+    const userId = card.dataset.userId;
+    // Find user data from queue or first card
+    let userData = cardsQueue.find(c => c.id == userId);
+    if (!userData && card.classList.contains('profile-card')) {
+        // Parse from DOM
+        userData = {
+            id: userId,
+            name: card.querySelector('.profile-card-name')?.textContent || '',
+            avatar: card.querySelector('.profile-card-image')?.src || '',
+            bio: card.querySelector('.profile-card-bio')?.textContent || '',
+            district_name: card.querySelector('.profile-card-location')?.textContent.split(',')[0].trim() || '',
+            preferences: {}
+        };
+    }
+    return userData;
+}
+
+function getCardRoomData(card) {
+    const roomId = card.dataset.roomId;
+    let roomData = cardsQueue.find(c => c.id == roomId);
+    if (!roomData && card.classList.contains('profile-card')) {
+        // Parse from DOM
+        roomData = {
+            id: roomId,
+            title: card.querySelector('h3')?.textContent || '',
+            price: card.querySelector('.profile-card-name')?.textContent || '',
+            images: [card.querySelector('.profile-card-image')?.src] || [],
+            description: card.querySelector('.profile-card-bio')?.textContent || '',
+            district_name: card.querySelector('.profile-card-location')?.textContent || ''
+        };
+    }
+    return roomData;
+}
+
+function renderDetailModal(data) {
+    const gallery = document.getElementById('detailImageGallery');
+    const content = document.getElementById('detailContent');
+
+    if (SEARCH_MODE === 'find_roommate') {
+        // User detail
+        gallery.innerHTML = `
+            <img src="${data.avatar || ASSETS_URL + '/images/default-avatar.svg'}"
+                 class="detail-gallery-image" alt="${escapeHtml(data.name)}">
+        `;
+
+        content.innerHTML = `
+            <h1 class="detail-title">${escapeHtml(data.name)}, ${data.age || '?'}</h1>
+            <div class="detail-location">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                ${escapeHtml(data.district_name || '')}
+            </div>
+            ${data.bio ? `<p class="detail-bio">${escapeHtml(data.bio)}</p>` : ''}
+            ${renderUserPreferences(data.preferences || {})}
+        `;
+    } else {
+        // Room detail
+        const images = data.images || [];
+        if (images.length > 1) {
+            gallery.innerHTML = `
+                <div class="detail-gallery-track" id="galleryTrack">
+                    ${images.map((img, i) => `
+                        <img src="${img}" class="detail-gallery-image" alt="Image ${i + 1}">
+                    `).join('')}
+                </div>
+                <div class="detail-gallery-dots">
+                    ${images.map((_, i) => `
+                        <div class="detail-gallery-dot ${i === 0 ? 'active' : ''}" onclick="goToGalleryImage(${i})"></div>
+                    `).join('')}
+                </div>
+            `;
+            enableGallerySwipe();
+        } else {
+            gallery.innerHTML = `
+                <img src="${images[0] || ASSETS_URL + '/images/default-room.svg'}"
+                     class="detail-gallery-image" alt="${escapeHtml(data.title || '')}">
+            `;
+        }
+
+        content.innerHTML = `
+            <h1 class="detail-title">${escapeHtml(data.price || '')}/tháng</h1>
+            <div class="detail-location">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                ${escapeHtml(data.district_name || '')}
+            </div>
+            <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.75rem;">${escapeHtml(data.title || '')}</h3>
+            ${data.description ? `<p class="detail-bio">${escapeHtml(data.description)}</p>` : ''}
+            ${renderRoomAmenities(data.amenities || {}, data.area)}
+        `;
+    }
+}
+
+function renderUserPreferences(prefs) {
+    if (!prefs || Object.keys(prefs).length === 0) return '';
+
+    let html = '<div class="detail-section"><div class="detail-section-title">Preferences</div><div class="detail-tags">';
+
+    if (prefs.budget_min && prefs.budget_max) {
+        html += `<div class="detail-tag">💰 ${formatPrice(prefs.budget_min)} - ${formatPrice(prefs.budget_max)}</div>`;
+    }
+    if (prefs.cleanliness) {
+        html += `<div class="detail-tag">✨ Cleanliness: ${prefs.cleanliness}/5</div>`;
+    }
+    if (prefs.noise_tolerance) {
+        html += `<div class="detail-tag">🔊 Noise: ${prefs.noise_tolerance}/5</div>`;
+    }
+    if (prefs.smoking === false) {
+        html += `<div class="detail-tag">🚭 No smoking</div>`;
+    }
+    if (prefs.pets === false) {
+        html += `<div class="detail-tag">🚫🐕 No pets</div>`;
+    }
+
+    html += '</div></div>';
+    return html;
+}
+
+function renderRoomAmenities(amenities, area) {
+    let html = '<div class="detail-section"><div class="detail-section-title">Features</div><div class="detail-tags">';
+
+    if (area) {
+        html += `<div class="detail-tag">📐 ${area}m²</div>`;
+    }
+
+    const amenityLabels = {
+        'wifi': '📶 Wifi',
+        'ac': '❄️ AC',
+        'kitchen': '🍳 Kitchen',
+        'parking': '🅿️ Parking',
+        'laundry': '🧺 Laundry',
+        'furniture': '🛋️ Furniture'
+    };
+
+    for (const [key, label] of Object.entries(amenityLabels)) {
+        if (amenities[key]) {
+            html += `<div class="detail-tag">${label}</div>`;
+        }
+    }
+
+    html += '</div></div>';
+    return html;
+}
+
+// Gallery swipe functionality
+function enableGallerySwipe() {
+    const gallery = document.getElementById('detailImageGallery');
+    const track = document.getElementById('galleryTrack');
+    let startX = 0;
+    let currentX = 0;
+    let isDragging = false;
+
+    gallery.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        isDragging = true;
+    });
+
+    gallery.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        currentX = e.touches[0].clientX;
+        const diff = currentX - startX;
+        track.style.transform = `translateX(calc(-${currentGalleryIndex * 100}% + ${diff}px))`;
+    });
+
+    gallery.addEventListener('touchend', () => {
+        if (!isDragging) return;
+        isDragging = false;
+
+        const diff = currentX - startX;
+        const images = track.querySelectorAll('.detail-gallery-image');
+
+        if (diff < -50 && currentGalleryIndex < images.length - 1) {
+            currentGalleryIndex++;
+        } else if (diff > 50 && currentGalleryIndex > 0) {
+            currentGalleryIndex--;
+        }
+
+        updateGalleryPosition();
+    });
+}
+
+function goToGalleryImage(index) {
+    currentGalleryIndex = index;
+    updateGalleryPosition();
+}
+
+function updateGalleryPosition() {
+    const track = document.getElementById('galleryTrack');
+    if (track) {
+        track.style.transform = `translateX(-${currentGalleryIndex * 100}%)`;
+
+        // Update dots
+        document.querySelectorAll('.detail-gallery-dot').forEach((dot, i) => {
+            dot.classList.toggle('active', i === currentGalleryIndex);
+        });
+    }
+}
+
+// Detail modal action handlers
+document.getElementById('detailBtnPass')?.addEventListener('click', async () => {
+    closeDetailModal();
+    if (currentDetailCard) {
+        handleAction(false);
+    }
+});
+
+document.getElementById('detailBtnLike')?.addEventListener('click', async () => {
+    closeDetailModal();
+    if (currentDetailCard) {
+        handleAction(true);
+    }
+});
 </script>
 
 <?php
