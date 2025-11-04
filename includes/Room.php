@@ -6,12 +6,15 @@
 
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/constants.php';
+require_once __DIR__ . '/GeoLocationService.php';
 
 class Room {
     private $db;
+    private $geoService;
 
     public function __construct() {
         $this->db = getDB();
+        $this->geoService = new GeoLocationService();
     }
 
     /**
@@ -138,14 +141,18 @@ class Room {
     }
 
     /**
-     * Get active rooms for swipe
+     * Get active rooms for swipe with smart filtering and ranking
      * @param int $userId
      * @param int $userDistrictId
+     * @param array $userPreferences User preferences including budget, max_distance, etc.
      * @param int $limit
      * @return array
      */
-    public function getPotentialRooms($userId, $userDistrictId, $limit = CARDS_PER_SWIPE) {
+    public function getPotentialRooms($userId, $userDistrictId, $userPreferences = [], $limit = CARDS_PER_SWIPE) {
         try {
+            // Get user location (district center)
+            $userLocation = $this->geoService->getUserLocation($userId);
+
             // Get IDs của rooms đã swipe rồi
             $stmt = $this->db->prepare("
                 SELECT room_id FROM room_swipes WHERE user_id = ?
@@ -159,36 +166,204 @@ class Room {
 
             $placeholders = str_repeat('?,', count($swipedIds) - 1) . '?';
 
-            // Get active rooms, prioritize same district
+            // Build WHERE conditions based on preferences
+            $whereConditions = [
+                "r.id NOT IN ($placeholders)",
+                "r.status = 'active'",
+                "r.expired_at > NOW()"
+            ];
+            $params = $swipedIds;
+
+            // Price filter
+            if (!empty($userPreferences['budget_min'])) {
+                $whereConditions[] = "r.price >= ?";
+                $params[] = $userPreferences['budget_min'];
+            }
+            if (!empty($userPreferences['budget_max'])) {
+                $whereConditions[] = "r.price <= ?";
+                $params[] = $userPreferences['budget_max'];
+            }
+
+            // Area filter
+            if (!empty($userPreferences['area_min'])) {
+                $whereConditions[] = "r.area >= ?";
+                $params[] = $userPreferences['area_min'];
+            }
+            if (!empty($userPreferences['area_max'])) {
+                $whereConditions[] = "r.area <= ?";
+                $params[] = $userPreferences['area_max'];
+            }
+
+            $whereClause = implode(' AND ', $whereConditions);
+
+            // Get rooms with all data needed for ranking
+            // Fetch more than needed so we can filter by distance and rank properly
+            $fetchLimit = $limit * 3;
+
             $stmt = $this->db->prepare("
-                SELECT r.*, d.name as district_name, d.city_name,
-                       u.name as owner_name, u.avatar as owner_avatar,
-                       CASE WHEN r.district_id = ? THEN 1 ELSE 0 END as same_district
+                SELECT r.*,
+                       d.name as district_name,
+                       d.city_name,
+                       d.latitude as district_lat,
+                       d.longitude as district_lng,
+                       u.name as owner_name,
+                       u.avatar as owner_avatar
                 FROM rooms r
                 LEFT JOIN districts d ON r.district_id = d.id
                 LEFT JOIN users u ON r.owner_id = u.id
-                WHERE r.id NOT IN ($placeholders)
-                    AND r.status = 'active'
-                    AND r.expired_at > NOW()
-                ORDER BY same_district DESC, r.created_at DESC
+                WHERE $whereClause
                 LIMIT ?
             ");
 
-            $params = array_merge([$userDistrictId], $swipedIds, [$limit]);
+            $params[] = $fetchLimit;
             $stmt->execute($params);
-            $rooms = $stmt->fetchAll();
+            $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Decode JSON fields
+            // Calculate distance and apply smart ranking
+            $maxDistance = isset($userPreferences['max_distance'])
+                ? min($userPreferences['max_distance'], MAX_DISTANCE_LIMIT)
+                : DEFAULT_MAX_DISTANCE;
+
+            $rankedRooms = [];
+
             foreach ($rooms as &$room) {
+                // Decode JSON fields
                 $room['images'] = json_decode($room['images'], true) ?? [];
                 $room['amenities'] = json_decode($room['amenities'], true) ?? [];
+
+                // Calculate distance
+                $distance = null;
+                if ($userLocation && $room['latitude'] && $room['longitude']) {
+                    $distance = $this->geoService->calculateDistance(
+                        $userLocation['latitude'],
+                        $userLocation['longitude'],
+                        $room['latitude'],
+                        $room['longitude']
+                    );
+                } elseif ($userLocation && $room['district_lat'] && $room['district_lng']) {
+                    // Fallback to district center if room coordinates not available
+                    $distance = $this->geoService->calculateDistance(
+                        $userLocation['latitude'],
+                        $userLocation['longitude'],
+                        $room['district_lat'],
+                        $room['district_lng']
+                    );
+                }
+
+                // Filter by max distance if distance is available
+                if ($distance !== null && $distance > $maxDistance) {
+                    continue; // Skip rooms beyond max distance
+                }
+
+                $room['distance_km'] = $distance;
+                $room['distance_formatted'] = $this->geoService->formatDistance($distance);
+
+                // Calculate smart ranking score (Phase 2)
+                $room['ranking_score'] = $this->calculateRoomScore($room, $userPreferences, $distance);
+
+                $rankedRooms[] = $room;
             }
 
-            return $rooms;
+            // Sort by ranking score (highest first)
+            usort($rankedRooms, function($a, $b) {
+                return $b['ranking_score'] <=> $a['ranking_score'];
+            });
+
+            // Return only the requested limit
+            return array_slice($rankedRooms, 0, $limit);
+
         } catch (PDOException $e) {
             error_log("Get potential rooms error: " . $e->getMessage());
             return [];
         }
+    }
+
+    /**
+     * Calculate smart ranking score for a room (Phase 2)
+     * @param array $room Room data
+     * @param array $userPreferences User preferences
+     * @param float|null $distance Distance in km
+     * @return float Score from 0 to 100
+     */
+    private function calculateRoomScore($room, $userPreferences, $distance) {
+        $score = 0;
+
+        // 1. Distance Score (40%) - Closer is better
+        if ($distance !== null) {
+            $maxDistance = isset($userPreferences['max_distance'])
+                ? $userPreferences['max_distance']
+                : DEFAULT_MAX_DISTANCE;
+
+            // Score decreases linearly from 100 to 0 as distance approaches max
+            $distanceScore = max(0, (1 - ($distance / $maxDistance)) * 100);
+            $score += $distanceScore * RANKING_DISTANCE_WEIGHT;
+        } else {
+            // No distance data, give neutral score
+            $score += 50 * RANKING_DISTANCE_WEIGHT;
+        }
+
+        // 2. Price Match Score (30%) - How well price matches budget
+        if (!empty($userPreferences['budget_min']) && !empty($userPreferences['budget_max'])) {
+            $budgetMid = ($userPreferences['budget_min'] + $userPreferences['budget_max']) / 2;
+            $budgetRange = $userPreferences['budget_max'] - $userPreferences['budget_min'];
+
+            if ($budgetRange > 0) {
+                // Score is 100 if price is at budget midpoint, decreases as it moves away
+                $priceDiff = abs($room['price'] - $budgetMid);
+                $priceScore = max(0, (1 - ($priceDiff / $budgetRange)) * 100);
+                $score += $priceScore * RANKING_PRICE_WEIGHT;
+            } else {
+                $score += 100 * RANKING_PRICE_WEIGHT; // Perfect match if exact budget
+            }
+        } else {
+            // No price preference, give neutral score
+            $score += 50 * RANKING_PRICE_WEIGHT;
+        }
+
+        // 3. Amenities Match Score (20%) - Based on user preferences
+        if (!empty($userPreferences)) {
+            $amenitiesScore = 0;
+            $checkedAmenities = 0;
+
+            $roomAmenities = $room['amenities'] ?? [];
+
+            // Check common boolean preferences
+            $amenityPreferences = ['wifi', 'ac', 'kitchen', 'parking', 'laundry', 'furniture'];
+            foreach ($amenityPreferences as $amenity) {
+                if (isset($userPreferences[$amenity])) {
+                    $checkedAmenities++;
+                    $userWants = (bool) $userPreferences[$amenity];
+                    $roomHas = !empty($roomAmenities[$amenity]);
+
+                    if ($userWants && $roomHas) {
+                        $amenitiesScore += 100; // Perfect match
+                    } elseif (!$userWants && !$roomHas) {
+                        $amenitiesScore += 100; // Also good (user doesn't want, room doesn't have)
+                    } elseif ($userWants && !$roomHas) {
+                        $amenitiesScore += 0; // Bad (user wants but room doesn't have)
+                    } else {
+                        $amenitiesScore += 50; // Neutral (user doesn't want but room has - not terrible)
+                    }
+                }
+            }
+
+            if ($checkedAmenities > 0) {
+                $amenitiesScore = $amenitiesScore / $checkedAmenities;
+                $score += $amenitiesScore * RANKING_AMENITIES_WEIGHT;
+            } else {
+                $score += 50 * RANKING_AMENITIES_WEIGHT;
+            }
+        } else {
+            $score += 50 * RANKING_AMENITIES_WEIGHT;
+        }
+
+        // 4. Popularity Score (10%) - Based on likes
+        $likesCount = $room['likes_count'] ?? 0;
+        // Normalize: 10+ likes = 100 score, 0 likes = 0 score
+        $popularityScore = min(100, ($likesCount / 10) * 100);
+        $score += $popularityScore * RANKING_POPULARITY_WEIGHT;
+
+        return round($score, 2);
     }
 
     /**

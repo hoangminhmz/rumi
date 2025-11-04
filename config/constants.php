@@ -36,6 +36,18 @@ define('ROOM_LISTING_DURATION', 30); // 30 days
 define('SWIPE_DAILY_LIMIT', 100);
 define('MATCH_REVEAL_DELAY', 2); // seconds
 
+// Geolocation & Maps
+define('MAPBOX_API_KEY', ''); // Để trống, sẽ set trong .env hoặc config riêng
+define('DEFAULT_MAX_DISTANCE', 5); // km - Default search radius
+define('MAX_DISTANCE_LIMIT', 20); // km - Maximum search radius allowed
+define('EARTH_RADIUS_KM', 6371); // Earth radius in kilometers
+
+// Smart Ranking Weights (Phase 2)
+define('RANKING_DISTANCE_WEIGHT', 0.40); // 40%
+define('RANKING_PRICE_WEIGHT', 0.30); // 30%
+define('RANKING_AMENITIES_WEIGHT', 0.20); // 20%
+define('RANKING_POPULARITY_WEIGHT', 0.10); // 10%
+
 // RUMI Brand Colors
 define('COLOR_PRIMARY', '#00D4AA');
 define('COLOR_SECONDARY', '#A7F3D0');

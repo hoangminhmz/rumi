@@ -34,7 +34,20 @@ if (!in_array($searchMode, ['find_roommate', 'find_room'])) {
 if ($searchMode === 'find_roommate') {
     $cards = $userModel->getPotentialMatches(getCurrentUserId());
 } else {
-    $cards = $roomModel->getPotentialRooms(getCurrentUserId(), $currentUser['district_id']);
+    // Decode user preferences for room filtering
+    $userPreferences = is_string($currentUser['preferences'])
+        ? json_decode($currentUser['preferences'], true)
+        : $currentUser['preferences'];
+
+    if (!is_array($userPreferences)) {
+        $userPreferences = [];
+    }
+
+    $cards = $roomModel->getPotentialRooms(
+        getCurrentUserId(),
+        $currentUser['district_id'],
+        $userPreferences
+    );
 }
 
 $pageTitle = 'Tìm kiếm';
@@ -407,6 +420,11 @@ include __DIR__ . '/../components/header.php';
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 </svg>
                                 <?= e($firstCard['district_name']) ?>, <?= e($firstCard['city_name']) ?>
+                                <?php if (!empty($firstCard['distance_formatted'])): ?>
+                                    <span style="margin-left: 0.5rem; color: var(--color-primary); font-weight: 600;">
+                                        • <?= e($firstCard['distance_formatted']) ?>
+                                    </span>
+                                <?php endif; ?>
                             </div>
                         </div>
 
@@ -650,6 +668,7 @@ function createRoomCardHTML(room) {
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
                         </svg>
                         ${escapeHtml(room.district_name)}, ${escapeHtml(room.city_name)}
+                        ${room.distance_formatted ? `<span style="margin-left: 0.5rem; color: var(--color-primary); font-weight: 600;">• ${escapeHtml(room.distance_formatted)}</span>` : ''}
                     </div>
                 </div>
                 <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">${escapeHtml(room.title)}</h3>
