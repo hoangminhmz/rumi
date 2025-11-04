@@ -656,6 +656,33 @@ function createRoomCardHTML(room) {
     const images = room.images || [];
     const firstImage = images.length > 0 ? `${ASSETS_URL}/images/uploads/${images[0]}` : `${ASSETS_URL}/images/default-room.svg`;
 
+    // Build amenities badges
+    let amenitiesBadges = '';
+    if (room.area) {
+        amenitiesBadges += `<span class="badge badge-primary">📐 ${room.area}m²</span>`;
+    }
+
+    const amenityLabels = {
+        'wifi': '📶 Wifi',
+        'ac': '❄️ Điều hòa',
+        'kitchen': '🍳 Bếp',
+        'parking': '🅿️ Chỗ xe',
+        'laundry': '🧺 Máy giặt',
+        'furniture': '🛋️ Nội thất'
+    };
+
+    let amenityCount = 0;
+    const maxAmenities = 5;
+
+    if (room.amenities) {
+        for (const [key, value] of Object.entries(room.amenities)) {
+            if (value && amenityLabels[key] && amenityCount < maxAmenities) {
+                amenitiesBadges += `<span class="badge badge-primary">${amenityLabels[key]}</span>`;
+                amenityCount++;
+            }
+        }
+    }
+
     return `
         <div class="profile-card" data-room-id="${room.id}">
             <img src="${firstImage}" alt="${escapeHtml(room.title)}" class="profile-card-image">
@@ -673,6 +700,7 @@ function createRoomCardHTML(room) {
                 </div>
                 <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">${escapeHtml(room.title)}</h3>
                 ${room.description ? `<p class="profile-card-bio">${escapeHtml(room.description.substring(0, 120))}...</p>` : ''}
+                ${amenitiesBadges ? `<div class="profile-card-tags">${amenitiesBadges}</div>` : ''}
             </div>
         </div>
     `;
