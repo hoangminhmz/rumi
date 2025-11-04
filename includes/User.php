@@ -336,4 +336,166 @@ class User {
             return [];
         }
     }
+
+    // ============================================
+    // NEW METHODS FOR TWO-STAGE MATCHING
+    // ============================================
+
+    /**
+     * Check if user can access roommate tab
+     * For find_room_first mode: must have liked at least 1 room
+     * For find_roommate_first mode: always accessible
+     *
+     * @param int $userId
+     * @return bool
+     */
+    public function canAccessRoommateTab($userId) {
+        try {
+            $user = $this->getById($userId);
+            if (!$user) return false;
+
+            // If mode is find_roommate_first, always allow access
+            if ($user['search_mode'] === 'find_roommate_first') {
+                return true;
+            }
+
+            // If mode is find_room_first, check if user has liked any rooms
+            $stmt = $this->db->prepare("
+                SELECT COUNT(*) as count
+                FROM room_swipes
+                WHERE user_id = ? AND is_like = 1
+            ");
+            $stmt->execute([$userId]);
+            $result = $stmt->fetch();
+
+            return $result['count'] > 0;
+
+        } catch (PDOException $e) {
+            error_log("Can access roommate tab error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Check if user can access room tab
+     * For find_roommate_first mode: must have at least 1 match
+     * For find_room_first mode: always accessible
+     *
+     * @param int $userId
+     * @return bool
+     */
+    public function canAccessRoomTab($userId) {
+        try {
+            $user = $this->getById($userId);
+            if (!$user) return false;
+
+            // If mode is find_room_first, always allow access
+            if ($user['search_mode'] === 'find_room_first') {
+                return true;
+            }
+
+            // If mode is find_roommate_first, check if user has any matches
+            $stmt = $this->db->prepare("
+                SELECT COUNT(*) as count
+                FROM matches
+                WHERE (user1_id = ? OR user2_id = ?)
+                  AND status != 'disconnected'
+            ");
+            $stmt->execute([$userId, $userId]);
+            $result = $stmt->fetch();
+
+            return $result['count'] > 0;
+
+        } catch (PDOException $e) {
+            error_log("Can access room tab error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get list of room IDs that user has liked
+     * Used for find_room_first mode
+     *
+     * @param int $userId
+     * @return array Array of room IDs
+     */
+    public function getLikedRoomIds($userId) {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT room_id
+                FROM room_swipes
+                WHERE user_id = ? AND is_like = 1
+                ORDER BY created_at DESC
+            ");
+            $stmt->execute([$userId]);
+            return $stmt->fetchAll(PDO::FETCH_COLUMN);
+        } catch (PDOException $e) {
+            error_log("Get liked room IDs error: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get matched users for current user
+     * @param int $userId
+     * @return array
+     */
+    public function getMatchedUsers($userId) {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT DISTINCT
+                    CASE
+                        WHEN m.user1_id = ? THEN u2.id
+                        ELSE u1.id
+                    END as id,
+                    CASE
+                        WHEN m.user1_id = ? THEN u2.name
+                        ELSE u1.name
+                    END as name,
+                    CASE
+                        WHEN m.user1_id = ? THEN u2.age
+                        ELSE u1.age
+                    END as age,
+                    CASE
+                        WHEN m.user1_id = ? THEN u2.avatar
+                        ELSE u1.avatar
+                    END as avatar,
+                    CASE
+                        WHEN m.user1_id = ? THEN u2.bio
+                        ELSE u1.bio
+                    END as bio,
+                    CASE
+                        WHEN m.user1_id = ? THEN u2.preferences
+                        ELSE u1.preferences
+                    END as preferences,
+                    CASE
+                        WHEN m.user1_id = ? THEN d2.name
+                        ELSE d1.name
+                    END as district_name
+                FROM matches m
+                INNER JOIN users u1 ON m.user1_id = u1.id
+                INNER JOIN users u2 ON m.user2_id = u2.id
+                LEFT JOIN districts d1 ON u1.district_id = d1.id
+                LEFT JOIN districts d2 ON u2.district_id = d2.id
+                WHERE (m.user1_id = ? OR m.user2_id = ?)
+                  AND m.status != 'disconnected'
+                ORDER BY m.matched_at DESC
+            ");
+            $stmt->execute([
+                $userId, $userId, $userId, $userId,
+                $userId, $userId, $userId, $userId, $userId
+            ]);
+            $users = $stmt->fetchAll();
+
+            // Decode preferences JSON
+            foreach ($users as &$user) {
+                $user['preferences'] = json_decode($user['preferences'], true);
+            }
+
+            return $users;
+        } catch (PDOException $e) {
+            error_log("Get matched users error: " . $e->getMessage());
+            return [];
+        }
+    }
 }

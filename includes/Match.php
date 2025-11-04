@@ -329,4 +329,323 @@ class Match {
             return false;
         }
     }
+
+    // ============================================
+    // NEW METHODS FOR TWO-STAGE MATCHING
+    // ============================================
+
+    /**
+     * Get users who liked the same rooms as the given user
+     * This is for "find_room_first" mode
+     *
+     * @param int $userId User ID
+     * @param array $roomIds Array of room IDs that user liked
+     * @param array $filters Optional lifestyle filters
+     * @return array Array of compatible users
+     */
+    public function getUsersWhoLikedSameRooms($userId, $roomIds, $filters = []) {
+        try {
+            if (empty($roomIds)) {
+                return [];
+            }
+
+            $placeholders = str_repeat('?,', count($roomIds) - 1) . '?';
+
+            // Get all users who liked any of these rooms
+            $stmt = $this->db->prepare("
+                SELECT DISTINCT
+                    u.id,
+                    u.name,
+                    u.age,
+                    u.gender,
+                    u.bio,
+                    u.avatar,
+                    u.preferences,
+                    u.sleep_schedule,
+                    u.work_schedule,
+                    u.drinking,
+                    u.guests_policy,
+                    u.occupation,
+                    d.name as district_name,
+                    d.city_name,
+                    GROUP_CONCAT(DISTINCT rs.room_id) as shared_room_ids
+                FROM room_swipes rs
+                INNER JOIN users u ON rs.user_id = u.id
+                INNER JOIN districts d ON u.district_id = d.id
+                WHERE rs.room_id IN ($placeholders)
+                  AND rs.is_like = 1
+                  AND rs.user_id != ?
+                  AND u.is_active = 1
+                  AND u.id NOT IN (
+                      SELECT CASE
+                          WHEN user1_id = ? THEN user2_id
+                          ELSE user1_id
+                      END
+                      FROM matches
+                      WHERE (user1_id = ? OR user2_id = ?)
+                  )
+                GROUP BY u.id
+                ORDER BY rs.created_at DESC
+                LIMIT 100
+            ");
+
+            $params = array_merge($roomIds, [$userId, $userId, $userId, $userId]);
+            $stmt->execute($params);
+            $users = $stmt->fetchAll();
+
+            // Get current user for compatibility calculation
+            require_once __DIR__ . '/User.php';
+            $userModel = new User();
+            $currentUser = $userModel->getById($userId);
+
+            // Calculate compatibility score for each user
+            $scoredUsers = [];
+            foreach ($users as $user) {
+                // Decode JSON fields
+                $user['preferences'] = json_decode($user['preferences'], true);
+                $user['shared_room_ids'] = explode(',', $user['shared_room_ids']);
+
+                // Calculate lifestyle compatibility
+                $compatibilityScore = $this->calculateCompatibilityScore($currentUser, $user);
+
+                // Apply minimum threshold
+                $minThreshold = defined('MIN_COMPATIBILITY_THRESHOLD')
+                    ? MIN_COMPATIBILITY_THRESHOLD
+                    : 30;
+
+                if ($compatibilityScore >= $minThreshold) {
+                    $user['compatibility_score'] = $compatibilityScore;
+                    $user['shared_rooms_count'] = count($user['shared_room_ids']);
+                    $scoredUsers[] = $user;
+                }
+            }
+
+            // Sort by compatibility score (highest first)
+            usort($scoredUsers, function($a, $b) {
+                // Primary: compatibility score
+                $scoreDiff = $b['compatibility_score'] <=> $a['compatibility_score'];
+                if ($scoreDiff !== 0) return $scoreDiff;
+
+                // Secondary: number of shared rooms
+                return $b['shared_rooms_count'] <=> $a['shared_rooms_count'];
+            });
+
+            return $scoredUsers;
+
+        } catch (PDOException $e) {
+            error_log("Get users who liked same rooms error: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Calculate lifestyle compatibility score between two users (ENHANCED)
+     * Returns score from 0-100
+     *
+     * @param array $user1 First user data
+     * @param array $user2 Second user data
+     * @return float Compatibility score
+     */
+    public function calculateCompatibilityScore($user1, $user2) {
+        $score = 0;
+        $maxScore = 0;
+
+        // Ensure preferences are arrays
+        $prefs1 = is_array($user1['preferences']) ? $user1['preferences'] : [];
+        $prefs2 = is_array($user2['preferences']) ? $user2['preferences'] : [];
+
+        // 1. Sleep Schedule Compatibility (20 points)
+        if (!empty($user1['sleep_schedule']) && !empty($user2['sleep_schedule'])) {
+            $maxScore += 20;
+            if ($user1['sleep_schedule'] === $user2['sleep_schedule']) {
+                $score += 20; // Perfect match
+            } elseif ($user1['sleep_schedule'] === 'flexible' || $user2['sleep_schedule'] === 'flexible') {
+                $score += 15; // One is flexible
+            } else {
+                $score += 5; // Opposite schedules (early_bird vs night_owl)
+            }
+        }
+
+        // 2. Cleanliness Level (25 points) - Most important
+        if (isset($prefs1['cleanliness']) && isset($prefs2['cleanliness'])) {
+            $maxScore += 25;
+            $diff = abs($prefs1['cleanliness'] - $prefs2['cleanliness']);
+            $score += max(0, 25 - ($diff * 6)); // Each level difference = -6 points
+        }
+
+        // 3. Noise Tolerance (25 points) - Also very important
+        if (isset($prefs1['noise_tolerance']) && isset($prefs2['noise_tolerance'])) {
+            $maxScore += 25;
+            $diff = abs($prefs1['noise_tolerance'] - $prefs2['noise_tolerance']);
+            $score += max(0, 25 - ($diff * 6));
+        }
+
+        // 4. Smoking (15 points)
+        if (isset($prefs1['smoking']) && isset($prefs2['smoking'])) {
+            $maxScore += 15;
+            if ($prefs1['smoking'] === $prefs2['smoking']) {
+                $score += 15; // Same preference
+            } else {
+                $score += 3; // Mismatch is problematic
+            }
+        }
+
+        // 5. Drinking/Partying (10 points)
+        if (!empty($user1['drinking']) && !empty($user2['drinking'])) {
+            $maxScore += 10;
+            if ($user1['drinking'] === $user2['drinking']) {
+                $score += 10; // Exact match
+            } elseif (
+                in_array('social', [$user1['drinking'], $user2['drinking']]) &&
+                !in_array('frequent', [$user1['drinking'], $user2['drinking']])
+            ) {
+                $score += 7; // Social drinker is compatible with non-drinker
+            } elseif (in_array('social', [$user1['drinking'], $user2['drinking']])) {
+                $score += 5; // Social compatible with frequent
+            }
+        }
+
+        // 6. Guests Policy (5 points)
+        if (!empty($user1['guests_policy']) && !empty($user2['guests_policy'])) {
+            $maxScore += 5;
+            if ($user1['guests_policy'] === $user2['guests_policy']) {
+                $score += 5; // Exact match
+            } elseif (in_array('occasional', [$user1['guests_policy'], $user2['guests_policy']])) {
+                $score += 3; // Occasional is somewhat flexible
+            }
+        }
+
+        // Normalize to 0-100
+        if ($maxScore > 0) {
+            return round(($score / $maxScore) * 100, 2);
+        }
+
+        // If no new criteria available, fall back to old method
+        return $this->calculateCompatibility($user1, $user2);
+    }
+
+    /**
+     * Get match status between two users
+     * @param int $user1Id
+     * @param int $user2Id
+     * @return array|null Match record or null
+     */
+    public function getMatchStatus($user1Id, $user2Id) {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT * FROM matches
+                WHERE (user1_id = ? AND user2_id = ?)
+                   OR (user1_id = ? AND user2_id = ?)
+                LIMIT 1
+            ");
+            $stmt->execute([$user1Id, $user2Id, $user2Id, $user1Id]);
+            return $stmt->fetch();
+        } catch (PDOException $e) {
+            error_log("Get match status error: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Create triple match (user + user + room)
+     * @param int $user1Id
+     * @param int $user2Id
+     * @param int $roomId
+     * @return bool
+     */
+    public function createTripleMatch($user1Id, $user2Id, $roomId) {
+        try {
+            // Check if match already exists
+            $existing = $this->getMatchStatus($user1Id, $user2Id);
+
+            if ($existing) {
+                // Update with room_id
+                $stmt = $this->db->prepare("
+                    UPDATE matches
+                    SET room_id = ?, status = 'connected', connected_at = NOW()
+                    WHERE id = ?
+                ");
+                return $stmt->execute([$roomId, $existing['id']]);
+            } else {
+                // Create new match (use parent create method)
+                return $this->create($user1Id, $user2Id, $roomId) !== false;
+            }
+        } catch (PDOException $e) {
+            error_log("Create triple match error: " . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * Get suggested rooms for a matched pair
+     * @param int $matchId Match ID
+     * @return array
+     */
+    public function getSuggestedRoomsForMatch($matchId) {
+        try {
+            // Get match details
+            $stmt = $this->db->prepare("SELECT * FROM matches WHERE id = ?");
+            $stmt->execute([$matchId]);
+            $match = $stmt->fetch();
+
+            if (!$match) {
+                return [];
+            }
+
+            // Get rooms suitable for both users
+            require_once __DIR__ . '/Room.php';
+            $roomModel = new Room();
+            return $roomModel->getRoomsForMatchedPair(
+                $match['user1_id'],
+                $match['user2_id']
+            );
+
+        } catch (PDOException $e) {
+            error_log("Get suggested rooms error: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get count of matches for a user
+     * @param int $userId
+     * @return int
+     */
+    public function getMatchCount($userId) {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT COUNT(*) as count FROM matches
+                WHERE (user1_id = ? OR user2_id = ?)
+                  AND status != 'disconnected'
+            ");
+            $stmt->execute([$userId, $userId]);
+            $result = $stmt->fetch();
+            return (int) $result['count'];
+        } catch (PDOException $e) {
+            error_log("Get match count error: " . $e->getMessage());
+            return 0;
+        }
+    }
+
+    /**
+     * Get array of matched user IDs for a user
+     * @param int $userId
+     * @return array Array of user IDs
+     */
+    public function getMatchedUserIds($userId) {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT
+                    CASE WHEN user1_id = ? THEN user2_id ELSE user1_id END as matched_user_id
+                FROM matches
+                WHERE (user1_id = ? OR user2_id = ?)
+                  AND status != 'disconnected'
+            ");
+            $stmt->execute([$userId, $userId, $userId]);
+            return $stmt->fetchAll(PDO::FETCH_COLUMN);
+        } catch (PDOException $e) {
+            error_log("Get matched user IDs error: " . $e->getMessage());
+            return [];
+        }
+    }
 }
