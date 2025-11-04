@@ -580,4 +580,244 @@ class Room {
             return false;
         }
     }
+
+    // ============================================
+    // NEW METHODS FOR TWO-STAGE MATCHING
+    // ============================================
+
+    /**
+     * Get rooms suitable for a matched pair of users
+     * Blends preferences of both users to find compatible rooms
+     *
+     * @param int $user1Id First user ID
+     * @param int $user2Id Second user ID
+     * @param array $additionalFilters Optional additional filters
+     * @return array Array of suitable rooms
+     */
+    public function getRoomsForMatchedPair($user1Id, $user2Id, $additionalFilters = []) {
+        try {
+            // Get both users' data
+            require_once __DIR__ . '/User.php';
+            $userModel = new User();
+
+            $user1 = $userModel->getById($user1Id);
+            $user2 = $userModel->getById($user2Id);
+
+            if (!$user1 || !$user2) {
+                return [];
+            }
+
+            // Decode preferences
+            $prefs1 = is_array($user1['preferences']) ? $user1['preferences'] : json_decode($user1['preferences'], true);
+            $prefs2 = is_array($user2['preferences']) ? $user2['preferences'] : json_decode($user2['preferences'], true);
+
+            if (!is_array($prefs1)) $prefs1 = [];
+            if (!is_array($prefs2)) $prefs2 = [];
+
+            // Blend preferences (intersection approach - satisfy BOTH users)
+            $blendedPrefs = [];
+
+            // Budget: Overlap range
+            $budgetMin1 = $prefs1['budget_min'] ?? 0;
+            $budgetMax1 = $prefs1['budget_max'] ?? PHP_INT_MAX;
+            $budgetMin2 = $prefs2['budget_min'] ?? 0;
+            $budgetMax2 = $prefs2['budget_max'] ?? PHP_INT_MAX;
+
+            // Intersection of budget ranges
+            $blendedPrefs['budget_min'] = max($budgetMin1, $budgetMin2);
+            $blendedPrefs['budget_max'] = min($budgetMax1, $budgetMax2);
+
+            // If no overlap, return empty
+            if ($blendedPrefs['budget_min'] > $blendedPrefs['budget_max']) {
+                return [];
+            }
+
+            // Area: Overlap range
+            if (isset($prefs1['area_min']) || isset($prefs2['area_min'])) {
+                $blendedPrefs['area_min'] = max(
+                    $prefs1['area_min'] ?? 0,
+                    $prefs2['area_min'] ?? 0
+                );
+            }
+            if (isset($prefs1['area_max']) || isset($prefs2['area_max'])) {
+                $blendedPrefs['area_max'] = min(
+                    $prefs1['area_max'] ?? PHP_INT_MAX,
+                    $prefs2['area_max'] ?? PHP_INT_MAX
+                );
+            }
+
+            // Amenities: UNION (if either wants it, room should have it)
+            $blendedPrefs['amenities'] = [];
+            $amenityKeys = ['wifi', 'ac', 'kitchen', 'parking', 'laundry', 'furniture'];
+
+            foreach ($amenityKeys as $amenity) {
+                $user1Wants = isset($prefs1['amenities'][$amenity]) && $prefs1['amenities'][$amenity];
+                $user2Wants = isset($prefs2['amenities'][$amenity]) && $prefs2['amenities'][$amenity];
+
+                // If either user wants it, mark as required
+                if ($user1Wants || $user2Wants) {
+                    $blendedPrefs['amenities'][$amenity] = true;
+                }
+            }
+
+            // Location: Calculate midpoint between their preferred locations
+            if (!empty($prefs1['preferred_location']) && !empty($prefs2['preferred_location'])) {
+                $midpoint = $this->geoService->calculateMidpoint(
+                    $prefs1['preferred_location']['lat'],
+                    $prefs1['preferred_location']['lng'],
+                    $prefs2['preferred_location']['lat'],
+                    $prefs2['preferred_location']['lng']
+                );
+
+                $blendedPrefs['preferred_location'] = $midpoint;
+
+                // Average radius
+                $avgRadius = (
+                    ($prefs1['preferred_location']['radius_km'] ?? 5) +
+                    ($prefs2['preferred_location']['radius_km'] ?? 5)
+                ) / 2;
+                $blendedPrefs['preferred_location']['radius_km'] = $avgRadius;
+            } elseif (!empty($prefs1['preferred_location'])) {
+                $blendedPrefs['preferred_location'] = $prefs1['preferred_location'];
+            } elseif (!empty($prefs2['preferred_location'])) {
+                $blendedPrefs['preferred_location'] = $prefs2['preferred_location'];
+            }
+
+            // Merge with additional filters
+            $blendedPrefs = array_merge($blendedPrefs, $additionalFilters);
+
+            // Get rooms using blended preferences
+            // Use midpoint of their districts if no location preference
+            if (empty($blendedPrefs['preferred_location'])) {
+                $user1Location = $this->geoService->getUserLocation($user1Id);
+                $user2Location = $this->geoService->getUserLocation($user2Id);
+
+                if ($user1Location && $user2Location) {
+                    $midpoint = $this->geoService->calculateMidpoint(
+                        $user1Location['latitude'],
+                        $user1Location['longitude'],
+                        $user2Location['latitude'],
+                        $user2Location['longitude']
+                    );
+                    $midpoint['radius_km'] = 10; // Default 10km radius
+                    $blendedPrefs['preferred_location'] = $midpoint;
+                }
+            }
+
+            // Get potential rooms with blended preferences
+            return $this->getPotentialRooms(
+                $user1Id,
+                $user1['district_id'],
+                $blendedPrefs,
+                CARDS_PER_SWIPE
+            );
+
+        } catch (Exception $e) {
+            error_log("Get rooms for matched pair error: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get rooms suitable for all matches of a user (UNION approach)
+     * Returns rooms that are compatible with user + at least one of their matches
+     *
+     * @param int $userId User ID
+     * @param array $matchedUserIds Array of matched user IDs
+     * @param array $filters Optional filters
+     * @return array Array of rooms with compatibility info
+     */
+    public function getRoomsForAllMatches($userId, $matchedUserIds, $filters = []) {
+        try {
+            if (empty($matchedUserIds)) {
+                return [];
+            }
+
+            $allRooms = [];
+            $roomIdsSeen = [];
+
+            // For each matched user, find compatible rooms
+            foreach ($matchedUserIds as $matchedUserId) {
+                $pairRooms = $this->getRoomsForMatchedPair($userId, $matchedUserId, $filters);
+
+                foreach ($pairRooms as $room) {
+                    $roomId = $room['id'];
+
+                    if (!in_array($roomId, $roomIdsSeen)) {
+                        // First time seeing this room
+                        $roomIdsSeen[] = $roomId;
+                        $room['compatible_with_user_ids'] = [$matchedUserId];
+                        $room['compatibility_count'] = 1;
+                        $allRooms[] = $room;
+                    } else {
+                        // Room already in list, add this user to compatible list
+                        $index = array_search($roomId, array_column($allRooms, 'id'));
+                        if ($index !== false) {
+                            $allRooms[$index]['compatible_with_user_ids'][] = $matchedUserId;
+                            $allRooms[$index]['compatibility_count']++;
+                        }
+                    }
+                }
+            }
+
+            // Sort by number of compatible matches (more = better)
+            // Then by ranking score
+            usort($allRooms, function($a, $b) {
+                // Primary: Number of matches compatible
+                $compatDiff = $b['compatibility_count'] <=> $a['compatibility_count'];
+                if ($compatDiff !== 0) return $compatDiff;
+
+                // Secondary: Ranking score
+                return ($b['ranking_score'] ?? 0) <=> ($a['ranking_score'] ?? 0);
+            });
+
+            return $allRooms;
+
+        } catch (Exception $e) {
+            error_log("Get rooms for all matches error: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Get user's liked rooms with full details
+     * Used for find_room_first mode
+     *
+     * @param int $userId
+     * @return array
+     */
+    public function getUserLikedRooms($userId) {
+        try {
+            $stmt = $this->db->prepare("
+                SELECT r.*,
+                       d.name as district_name,
+                       d.city_name,
+                       u.name as owner_name,
+                       u.phone as owner_phone,
+                       rs.created_at as liked_at
+                FROM room_swipes rs
+                INNER JOIN rooms r ON rs.room_id = r.id
+                LEFT JOIN districts d ON r.district_id = d.id
+                LEFT JOIN users u ON r.owner_id = u.id
+                WHERE rs.user_id = ?
+                  AND rs.is_like = 1
+                  AND r.status = 'active'
+                ORDER BY rs.created_at DESC
+                LIMIT 50
+            ");
+            $stmt->execute([$userId]);
+            $rooms = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Decode JSON fields
+            foreach ($rooms as &$room) {
+                $room['images'] = json_decode($room['images'], true) ?? [];
+                $room['amenities'] = json_decode($room['amenities'], true) ?? [];
+            }
+
+            return $rooms;
+        } catch (PDOException $e) {
+            error_log("Get user liked rooms error: " . $e->getMessage());
+            return [];
+        }
+    }
 }

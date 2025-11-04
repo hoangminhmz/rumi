@@ -225,4 +225,154 @@ class GeoLocationService {
 
         return round($distanceKm, 1) . ' km';
     }
+
+    /**
+     * Calculate midpoint between two coordinates
+     * Used for finding ideal location between two users
+     *
+     * @param float $lat1 Latitude of first point
+     * @param float $lng1 Longitude of first point
+     * @param float $lat2 Latitude of second point
+     * @param float $lng2 Longitude of second point
+     * @return array ['latitude' => float, 'longitude' => float]
+     */
+    public function calculateMidpoint($lat1, $lng1, $lat2, $lng2) {
+        // Validate coordinates
+        if (!$this->isValidCoordinate($lat1, $lng1) || !$this->isValidCoordinate($lat2, $lng2)) {
+            return [
+                'latitude' => ($lat1 + $lat2) / 2,
+                'longitude' => ($lng1 + $lng2) / 2
+            ];
+        }
+
+        // Convert to radians
+        $lat1Rad = deg2rad($lat1);
+        $lng1Rad = deg2rad($lng1);
+        $lat2Rad = deg2rad($lat2);
+        $lng2Rad = deg2rad($lng2);
+
+        // Calculate midpoint using spherical geometry
+        $dLng = $lng2Rad - $lng1Rad;
+
+        $bx = cos($lat2Rad) * cos($dLng);
+        $by = cos($lat2Rad) * sin($dLng);
+
+        $lat3Rad = atan2(
+            sin($lat1Rad) + sin($lat2Rad),
+            sqrt((cos($lat1Rad) + $bx) * (cos($lat1Rad) + $bx) + $by * $by)
+        );
+
+        $lng3Rad = $lng1Rad + atan2($by, cos($lat1Rad) + $bx);
+
+        // Convert back to degrees
+        return [
+            'latitude' => rad2deg($lat3Rad),
+            'longitude' => rad2deg($lng3Rad)
+        ];
+    }
+
+    /**
+     * Search address using Mapbox Geocoding API
+     * @param string $query Search query
+     * @param string $country Country code (default: VN)
+     * @return array Array of results
+     */
+    public function searchAddress($query, $country = 'VN') {
+        if (empty($this->apiKey)) {
+            error_log("RUMI: Mapbox API key not configured");
+            return [];
+        }
+
+        if (empty($query)) {
+            return [];
+        }
+
+        try {
+            $encodedQuery = urlencode($query);
+            $url = "https://api.mapbox.com/geocoding/v5/mapbox.places/{$encodedQuery}.json?access_token={$this->apiKey}&country={$country}&limit=5";
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($error || $httpCode !== 200) {
+                error_log("RUMI Geocoding search error: {$error}");
+                return [];
+            }
+
+            $data = json_decode($response, true);
+
+            if (isset($data['features']) && is_array($data['features'])) {
+                return $data['features'];
+            }
+
+            return [];
+
+        } catch (Exception $e) {
+            error_log("RUMI Geocoding search exception: " . $e->getMessage());
+            return [];
+        }
+    }
+
+    /**
+     * Reverse geocode coordinates to address
+     * @param float $lat Latitude
+     * @param float $lng Longitude
+     * @return array|null Address components or null
+     */
+    public function reverseGeocode($lat, $lng) {
+        if (empty($this->apiKey)) {
+            error_log("RUMI: Mapbox API key not configured");
+            return null;
+        }
+
+        if (!$this->isValidCoordinate($lat, $lng)) {
+            return null;
+        }
+
+        try {
+            $url = "https://api.mapbox.com/geocoding/v5/mapbox.places/{$lng},{$lat}.json?access_token={$this->apiKey}&types=address,place";
+
+            $ch = curl_init();
+            curl_setopt($ch, CURLOPT_URL, $url);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 10);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
+
+            $response = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($error || $httpCode !== 200) {
+                error_log("RUMI Reverse geocoding error: {$error}");
+                return null;
+            }
+
+            $data = json_decode($response, true);
+
+            if (isset($data['features'][0])) {
+                $feature = $data['features'][0];
+
+                return [
+                    'address' => $feature['place_name'] ?? '',
+                    'context' => $feature['context'] ?? [],
+                    'coordinates' => $feature['geometry']['coordinates'] ?? []
+                ];
+            }
+
+            return null;
+
+        } catch (Exception $e) {
+            error_log("RUMI Reverse geocoding exception: " . $e->getMessage());
+            return null;
+        }
+    }
 }
