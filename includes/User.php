@@ -100,7 +100,11 @@ class User {
                 UPDATE users
                 SET name = ?, phone = ?, gender = ?, age = ?,
                     district_id = ?, bio = ?, preferences = ?,
-                    search_mode = ?, updated_at = NOW()
+                    search_mode = ?,
+                    sleep_schedule = ?, work_schedule = ?, drinking = ?,
+                    guests_policy = ?, occupation = ?, move_in_date = ?,
+                    stay_duration = ?, facebook_url = ?, linkedin_url = ?,
+                    updated_at = NOW()
                 WHERE id = ?
             ");
 
@@ -112,7 +116,16 @@ class User {
                 $data['district_id'],
                 $data['bio'] ?? null,
                 json_encode($data['preferences'] ?? []),
-                $data['search_mode'] ?? 'find_roommate',
+                $data['search_mode'] ?? 'find_roommate_first',
+                $data['sleep_schedule'] ?? null,
+                $data['work_schedule'] ?? null,
+                $data['drinking'] ?? null,
+                $data['guests_policy'] ?? null,
+                $data['occupation'] ?? null,
+                $data['move_in_date'] ?? null,
+                $data['stay_duration'] ?? null,
+                $data['facebook_url'] ?? null,
+                $data['linkedin_url'] ?? null,
                 $userId
             ]);
         } catch (PDOException $e) {
