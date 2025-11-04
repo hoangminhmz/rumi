@@ -28,10 +28,14 @@ class Room {
             $stmt = $this->db->prepare("
                 INSERT INTO rooms (
                     owner_id, title, description, price, area,
-                    district_id, address, images, amenities,
-                    status, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_payment', NOW())
+                    district_id, ward, address,
+                    latitude, longitude, room_type,
+                    images, amenities,
+                    status, geocoded, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending_payment', ?, NOW())
             ");
+
+            $geocoded = !empty($data['latitude']) && !empty($data['longitude']);
 
             $result = $stmt->execute([
                 $ownerId,
@@ -39,10 +43,15 @@ class Room {
                 $data['description'] ?? null,
                 $data['price'],
                 $data['area'] ?? null,
-                $data['district_id'],
+                $data['district_id'] ?? null,
+                $data['ward'] ?? null,
                 $data['address'],
+                $data['latitude'] ?? null,
+                $data['longitude'] ?? null,
+                $data['room_type'] ?? null,
                 json_encode($data['images'] ?? []),
-                json_encode($data['amenities'] ?? [])
+                json_encode($data['amenities'] ?? []),
+                $geocoded
             ]);
 
             return $result ? $this->db->lastInsertId() : false;
