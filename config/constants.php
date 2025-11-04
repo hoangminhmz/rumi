@@ -48,6 +48,15 @@ define('RANKING_PRICE_WEIGHT', 0.30); // 30%
 define('RANKING_AMENITIES_WEIGHT', 0.20); // 20%
 define('RANKING_POPULARITY_WEIGHT', 0.10); // 10%
 
+// Two-Stage Matching (Phase 2.5)
+define('MIN_COMPATIBILITY_THRESHOLD', 30); // Minimum compatibility score to show user (0-100)
+define('LIFESTYLE_WEIGHT_SLEEP', 20); // Sleep schedule weight in compatibility
+define('LIFESTYLE_WEIGHT_CLEANLINESS', 25); // Cleanliness weight (most important)
+define('LIFESTYLE_WEIGHT_NOISE', 25); // Noise tolerance weight
+define('LIFESTYLE_WEIGHT_SMOKING', 15); // Smoking preference weight
+define('LIFESTYLE_WEIGHT_DRINKING', 10); // Drinking/party weight
+define('LIFESTYLE_WEIGHT_GUESTS', 5); // Guests policy weight
+
 // RUMI Brand Colors
 define('COLOR_PRIMARY', '#00D4AA');
 define('COLOR_SECONDARY', '#A7F3D0');
@@ -63,10 +72,10 @@ define('GENDERS', [
     'other' => 'Khác'
 ]);
 
-// Search modes
+// Search modes (Two-stage matching)
 define('SEARCH_MODES', [
-    'find_roommate' => 'Tìm người trước',
-    'find_room' => 'Tìm phòng trước'
+    'find_roommate_first' => 'Tìm bạn cùng phòng trước',
+    'find_room_first' => 'Tìm phòng trước'
 ]);
 
 // Room amenities
