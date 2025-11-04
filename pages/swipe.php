@@ -4,10 +4,6 @@
  * Clean, simple matching interface with large buttons
  */
 
-// Temporary error display to find 500 error
-ini_set('display_errors', 1);
-error_reporting(E_ALL);
-
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/constants.php';
 require_once __DIR__ . '/../includes/functions.php';
