@@ -2,127 +2,248 @@
 /**
  * RUMI - Swipe Interface (Button-Only Design)
  * Clean, simple matching interface with large buttons
+ *
+ * DEBUG MODE ENABLED - Check logs/swipe_errors.log for errors
  */
 
-require_once __DIR__ . '/../config/database.php';
-require_once __DIR__ . '/../config/constants.php';
-require_once __DIR__ . '/../includes/functions.php';
-require_once __DIR__ . '/../includes/User.php';
-require_once __DIR__ . '/../includes/Room.php';
-require_once __DIR__ . '/../includes/Match.php';
-require_once __DIR__ . '/../components/empty-state-locked.php';
+// ========== ERROR HANDLING & DEBUG ==========
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
 
-startSession();
-requireLogin();
+// Create logs directory if not exists
+$logDir = __DIR__ . '/../logs';
+if (!is_dir($logDir)) {
+    @mkdir($logDir, 0755, true);
+}
+ini_set('error_log', $logDir . '/swipe_errors.log');
 
-$userModel = new User();
-$roomModel = new Room();
-$matchModel = new Match();
-$currentUser = $userModel->getById(getCurrentUserId());
-
-// Check profile complete
-if (!$userModel->hasCompleteProfile(getCurrentUserId())) {
-    redirect(BASE_URL . '/pages/profile-setup.php');
+// Log function for debugging
+function debugLog($message, $data = null) {
+    $logFile = __DIR__ . '/../logs/swipe_debug.log';
+    $timestamp = date('Y-m-d H:i:s');
+    $logMessage = "[$timestamp] $message";
+    if ($data !== null) {
+        $logMessage .= " | Data: " . print_r($data, true);
+    }
+    error_log($logMessage . "\n", 3, $logFile);
 }
 
-// Get search mode (what tab user is viewing)
-$searchMode = $_GET['mode'] ?? 'find_roommate';
+debugLog("========== SWIPE.PHP START ==========");
 
-// Validate search mode
-if (!in_array($searchMode, ['find_roommate', 'find_room'])) {
-    $searchMode = 'find_roommate';
-}
+try {
+    debugLog("Step 1: Loading dependencies");
 
-// Get user's preference mode (what they chose to do first)
-$userMode = $currentUser['search_mode'] ?? 'find_roommate_first';
+    require_once __DIR__ . '/../config/database.php';
+    require_once __DIR__ . '/../config/constants.php';
+    require_once __DIR__ . '/../includes/functions.php';
+    require_once __DIR__ . '/../includes/User.php';
+    require_once __DIR__ . '/../includes/Room.php';
+    require_once __DIR__ . '/../includes/Match.php';
 
-// Initialize cards array and locked state
-$cards = [];
-$isLocked = false;
+    debugLog("Step 2: Dependencies loaded successfully");
 
-// ============================================
-// TWO-STAGE MATCHING LOGIC
-// ============================================
-
-if ($searchMode === 'find_roommate') {
-    // ========== USER IS VIEWING ROOMMATE TAB ==========
-
-    if ($userMode === 'find_room_first') {
-        // User chose find_room_first, so check if they can access roommate tab
-        $canAccess = $userModel->canAccessRoommateTab(getCurrentUserId());
-
-        if (!$canAccess) {
-            // LOCKED: User hasn't liked any rooms yet
-            $isLocked = true;
-        } else {
-            // UNLOCKED: Get users who liked same rooms
-            $likedRoomIds = $userModel->getLikedRoomIds(getCurrentUserId());
-            $cards = $matchModel->getUsersWhoLikedSameRooms(
-                getCurrentUserId(),
-                $likedRoomIds
-            );
-        }
+    // Check if empty-state-locked.php exists
+    $emptyStateFile = __DIR__ . '/../components/empty-state-locked.php';
+    if (file_exists($emptyStateFile)) {
+        require_once $emptyStateFile;
+        debugLog("Step 3: empty-state-locked.php loaded");
     } else {
-        // Normal find_roommate_first mode - always accessible
-        $cards = $userModel->getPotentialMatches(getCurrentUserId());
+        debugLog("WARNING: empty-state-locked.php not found at: $emptyStateFile");
     }
 
-} elseif ($searchMode === 'find_room') {
-    // ========== USER IS VIEWING ROOM TAB ==========
+    debugLog("Step 4: Starting session");
+    startSession();
+    requireLogin();
 
-    // Decode user preferences for room filtering
-    $userPreferences = is_string($currentUser['preferences'])
-        ? json_decode($currentUser['preferences'], true)
-        : $currentUser['preferences'];
+    $userId = getCurrentUserId();
+    debugLog("Step 5: User ID", $userId);
 
-    if (!is_array($userPreferences)) {
-        $userPreferences = [];
-    }
+    debugLog("Step 6: Initializing models");
+    $userModel = new User();
+    $roomModel = new Room();
+    $matchModel = new Match();
 
-    // Override preferences with URL params if present (from filter)
-    if (isset($_GET['budget_min'])) {
-        $userPreferences['budget_min'] = (int)$_GET['budget_min'];
+    debugLog("Step 7: Getting current user");
+    $currentUser = $userModel->getById($userId);
+
+    if (!$currentUser) {
+        throw new Exception("User not found for ID: $userId");
     }
-    if (isset($_GET['budget_max'])) {
-        $userPreferences['budget_max'] = (int)$_GET['budget_max'];
-    }
-    if (isset($_GET['cleanliness'])) {
-        $userPreferences['cleanliness'] = (int)$_GET['cleanliness'];
-    }
-    if (isset($_GET['noise_tolerance'])) {
-        $userPreferences['noise_tolerance'] = (int)$_GET['noise_tolerance'];
-    }
-    if (isset($_GET['smoking'])) {
-        $userPreferences['smoking'] = $_GET['smoking'] === '1';
-    }
-    if (isset($_GET['pets'])) {
-        $userPreferences['pets'] = $_GET['pets'] === '1';
+    debugLog("Step 8: Current user loaded", ['id' => $userId, 'name' => $currentUser['name'] ?? 'N/A']);
+
+    // Check profile complete
+    debugLog("Step 9: Checking profile completeness");
+    if (!$userModel->hasCompleteProfile($userId)) {
+        debugLog("Profile incomplete, redirecting to profile-setup");
+        redirect(BASE_URL . '/pages/profile-setup.php');
+        exit;
     }
 
-    if ($userMode === 'find_roommate_first') {
-        // User chose find_roommate_first, so check if they can access room tab
-        $canAccess = $userModel->canAccessRoomTab(getCurrentUserId());
+    // Get search mode (what tab user is viewing)
+    $searchMode = $_GET['mode'] ?? 'find_roommate';
+    debugLog("Step 10: Search mode", $searchMode);
 
-        if (!$canAccess) {
-            // LOCKED: User hasn't matched with anyone yet
-            $isLocked = true;
+    // Validate search mode
+    if (!in_array($searchMode, ['find_roommate', 'find_room'])) {
+        $searchMode = 'find_roommate';
+    }
+
+    // Get user's preference mode (what they chose to do first)
+    $userMode = $currentUser['search_mode'] ?? 'find_roommate_first';
+    debugLog("Step 11: User mode", $userMode);
+
+    // Initialize cards array and locked state
+    $cards = [];
+    $isLocked = false;
+
+    // ============================================
+    // TWO-STAGE MATCHING LOGIC
+    // ============================================
+
+    debugLog("Step 12: Starting two-stage matching logic");
+
+    if ($searchMode === 'find_roommate') {
+        debugLog("Step 13: Find roommate mode");
+        // ========== USER IS VIEWING ROOMMATE TAB ==========
+
+        if ($userMode === 'find_room_first') {
+            debugLog("Step 14: User mode is find_room_first");
+            // User chose find_room_first, so check if they can access roommate tab
+
+            try {
+                $canAccess = $userModel->canAccessRoommateTab($userId);
+                debugLog("Step 15: Can access roommate tab", $canAccess);
+
+                if (!$canAccess) {
+                    // LOCKED: User hasn't liked any rooms yet
+                    $isLocked = true;
+                    debugLog("Step 16: Tab is LOCKED");
+                } else {
+                    // UNLOCKED: Get users who liked same rooms
+                    debugLog("Step 17: Tab is UNLOCKED, getting liked rooms");
+                    $likedRoomIds = $userModel->getLikedRoomIds($userId);
+                    debugLog("Step 18: Liked room IDs", $likedRoomIds);
+
+                    $cards = $matchModel->getUsersWhoLikedSameRooms($userId, $likedRoomIds);
+                    debugLog("Step 19: Got cards", ['count' => count($cards)]);
+                }
+            } catch (Exception $e) {
+                debugLog("ERROR in find_room_first logic: " . $e->getMessage());
+                throw $e;
+            }
         } else {
-            // UNLOCKED: Get rooms suitable for user + all their matches
-            $matchedUserIds = $matchModel->getMatchedUserIds(getCurrentUserId());
-            $cards = $roomModel->getRoomsForAllMatches(
-                getCurrentUserId(),
-                $matchedUserIds,
-                $userPreferences
-            );
+            debugLog("Step 20: User mode is find_roommate_first");
+            // Normal find_roommate_first mode - always accessible
+            try {
+                $cards = $userModel->getPotentialMatches($userId);
+                debugLog("Step 21: Got potential matches", ['count' => count($cards)]);
+            } catch (Exception $e) {
+                debugLog("ERROR in getPotentialMatches: " . $e->getMessage());
+                throw $e;
+            }
         }
-    } else {
-        // Normal find_room_first mode - always accessible
-        $cards = $roomModel->getPotentialRooms(
-            getCurrentUserId(),
-            $currentUser['district_id'],
-            $userPreferences
-        );
+
+    } elseif ($searchMode === 'find_room') {
+        debugLog("Step 22: Find room mode");
+        // ========== USER IS VIEWING ROOM TAB ==========
+
+        // Decode user preferences for room filtering
+        $userPreferences = is_string($currentUser['preferences'])
+            ? json_decode($currentUser['preferences'], true)
+            : $currentUser['preferences'];
+
+        if (!is_array($userPreferences)) {
+            $userPreferences = [];
+        }
+        debugLog("Step 23: User preferences", $userPreferences);
+
+        // Override preferences with URL params if present (from filter)
+        if (isset($_GET['budget_min'])) {
+            $userPreferences['budget_min'] = (int)$_GET['budget_min'];
+        }
+        if (isset($_GET['budget_max'])) {
+            $userPreferences['budget_max'] = (int)$_GET['budget_max'];
+        }
+        if (isset($_GET['cleanliness'])) {
+            $userPreferences['cleanliness'] = (int)$_GET['cleanliness'];
+        }
+        if (isset($_GET['noise_tolerance'])) {
+            $userPreferences['noise_tolerance'] = (int)$_GET['noise_tolerance'];
+        }
+        if (isset($_GET['smoking'])) {
+            $userPreferences['smoking'] = $_GET['smoking'] === '1';
+        }
+        if (isset($_GET['pets'])) {
+            $userPreferences['pets'] = $_GET['pets'] === '1';
+        }
+
+        if ($userMode === 'find_roommate_first') {
+            debugLog("Step 24: User mode is find_roommate_first in room tab");
+            // User chose find_roommate_first, so check if they can access room tab
+
+            try {
+                $canAccess = $userModel->canAccessRoomTab($userId);
+                debugLog("Step 25: Can access room tab", $canAccess);
+
+                if (!$canAccess) {
+                    // LOCKED: User hasn't matched with anyone yet
+                    $isLocked = true;
+                    debugLog("Step 26: Tab is LOCKED");
+                } else {
+                    // UNLOCKED: Get rooms suitable for user + all their matches
+                    debugLog("Step 27: Tab is UNLOCKED, getting matched users");
+                    $matchedUserIds = $matchModel->getMatchedUserIds($userId);
+                    debugLog("Step 28: Matched user IDs", $matchedUserIds);
+
+                    $cards = $roomModel->getRoomsForAllMatches($userId, $matchedUserIds, $userPreferences);
+                    debugLog("Step 29: Got rooms for matches", ['count' => count($cards)]);
+                }
+            } catch (Exception $e) {
+                debugLog("ERROR in find_roommate_first room tab logic: " . $e->getMessage());
+                throw $e;
+            }
+        } else {
+            debugLog("Step 30: User mode is find_room_first");
+            // Normal find_room_first mode - always accessible
+            try {
+                $cards = $roomModel->getPotentialRooms($userId, $currentUser['district_id'], $userPreferences);
+                debugLog("Step 31: Got potential rooms", ['count' => count($cards)]);
+            } catch (Exception $e) {
+                debugLog("ERROR in getPotentialRooms: " . $e->getMessage());
+                throw $e;
+            }
+        }
     }
+
+    debugLog("Step 32: Logic completed successfully", ['cards_count' => count($cards), 'is_locked' => $isLocked]);
+
+} catch (Exception $e) {
+    debugLog("========== FATAL ERROR ==========");
+    debugLog("Error message: " . $e->getMessage());
+    debugLog("Error file: " . $e->getFile());
+    debugLog("Error line: " . $e->getLine());
+    debugLog("Stack trace: " . $e->getTraceAsString());
+
+    // Display user-friendly error
+    die('
+    <html>
+    <head><title>Error - RUMI</title></head>
+    <body style="font-family: sans-serif; padding: 2rem; max-width: 800px; margin: 0 auto;">
+        <h1 style="color: #dc2626;">⚠️ Error Loading Page</h1>
+        <div style="background: #fef2f2; padding: 1rem; border-left: 4px solid #dc2626; margin: 1rem 0;">
+            <strong>Error:</strong> ' . htmlspecialchars($e->getMessage()) . '
+        </div>
+        <div style="background: #f3f4f6; padding: 1rem; border-radius: 8px;">
+            <strong>Debug Information:</strong><br>
+            File: ' . htmlspecialchars($e->getFile()) . '<br>
+            Line: ' . $e->getLine() . '<br><br>
+            <strong>Check logs:</strong> logs/swipe_debug.log and logs/swipe_errors.log
+        </div>
+        <p><a href="' . BASE_URL . '" style="color: #2563eb;">← Go back to homepage</a></p>
+    </body>
+    </html>
+    ');
 }
 
 $pageTitle = 'Tìm kiếm';
