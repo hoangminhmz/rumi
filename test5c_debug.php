@@ -92,15 +92,15 @@ try {
         die();
     }
 
-    echo "<div class='info'>Step 9: Checking if Match class exists...</div>";
-    if (!class_exists('Match')) {
-        throw new Exception("Match class not defined after include!");
+    echo "<div class='info'>Step 9: Checking if MatchModel class exists...</div>";
+    if (!class_exists('MatchModel')) {
+        throw new Exception("MatchModel class not defined after include!");
     }
-    echo "<div class='success'>✓ Match class exists</div>";
+    echo "<div class='success'>✓ MatchModel class exists</div>";
 
-    echo "<div class='info'>Step 10: Creating Match object...</div>";
-    $matchModel = new Match();
-    echo "<div class='success'>✓ Match object created!</div>";
+    echo "<div class='info'>Step 10: Creating MatchModel object...</div>";
+    $matchModel = new MatchModel();
+    echo "<div class='success'>✓ MatchModel object created!</div>";
 
     echo "<div class='info'>Step 11: Checking methods...</div>";
     $methods = get_class_methods($matchModel);

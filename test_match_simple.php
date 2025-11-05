@@ -70,19 +70,19 @@ try {
 }
 
 // Step 5
-echo "Step 5: Check Match class exists\n";
-if (class_exists('Match')) {
-    echo "✓ Match class exists\n\n";
+echo "Step 5: Check MatchModel class exists\n";
+if (class_exists('MatchModel')) {
+    echo "✓ MatchModel class exists\n\n";
 } else {
-    echo "✗ Match class NOT found\n";
+    echo "✗ MatchModel class NOT found\n";
     die();
 }
 
 // Step 6
-echo "Step 6: Create Match object\n";
+echo "Step 6: Create MatchModel object\n";
 try {
-    $match = new Match();
-    echo "✓ Match object created\n\n";
+    $match = new MatchModel();
+    echo "✓ MatchModel object created\n\n";
 } catch (Throwable $e) {
     echo "✗ ERROR creating Match object:\n";
     echo "Message: " . $e->getMessage() . "\n";

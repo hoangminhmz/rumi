@@ -27,9 +27,9 @@ try {
     require_once $matchFile;
     echo "✓ Match.php loaded!<br>";
 
-    echo "<br>Step 4: Creating Match object...<br>";
-    $matchModel = new Match();
-    echo "✓ Match object created!<br>";
+    echo "<br>Step 4: Creating MatchModel object...<br>";
+    $matchModel = new MatchModel();
+    echo "✓ MatchModel object created!<br>";
 
     echo "<br>Step 5: Checking methods...<br>";
     $methods = get_class_methods($matchModel);

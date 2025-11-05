@@ -64,8 +64,8 @@ try {
     require_once __DIR__ . '/includes/Match.php';
     echo "✓ Match.php loaded<br>";
 
-    $matchModel = new Match();
-    echo "✓ Match object created<br>";
+    $matchModel = new MatchModel();
+    echo "✓ MatchModel object created<br>";
 
     // Check Match methods
     $matchMethods = ['getUsersWhoLikedSameRooms', 'getMatchedUserIds', 'calculateCompatibilityScore'];

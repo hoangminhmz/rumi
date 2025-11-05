@@ -58,7 +58,7 @@ try {
 
     if ($isLike && $userModel->checkMutualLike($userId, $targetUserId)) {
         // Create match
-        $matchModel = new Match();
+        $matchModel = new MatchModel();
         $matchId = $matchModel->create($userId, $targetUserId);
 
         if ($matchId) {

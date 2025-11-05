@@ -121,8 +121,8 @@ try {
     $roomModel = new Room();
     echo "<p style='color: green;'>✅ Room object created</p>";
 
-    $matchModel = new Match();
-    echo "<p style='color: green;'>✅ Match object created</p>";
+    $matchModel = new MatchModel();
+    echo "<p style='color: green;'>✅ MatchModel object created</p>";
 
 } catch (Exception $e) {
     echo "<p style='color: red;'>❌ Error loading models: " . htmlspecialchars($e->getMessage()) . "</p>";

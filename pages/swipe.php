@@ -62,7 +62,7 @@ try {
     debugLog("Step 6: Initializing models");
     $userModel = new User();
     $roomModel = new Room();
-    $matchModel = new Match();
+    $matchModel = new MatchModel();
 
     debugLog("Step 7: Getting current user");
     $currentUser = $userModel->getById($userId);

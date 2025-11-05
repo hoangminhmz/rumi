@@ -144,8 +144,8 @@ try {
     }
     echo "\n";
 
-    $matchModel = new Match();
-    echo "✅ Match object created\n";
+    $matchModel = new MatchModel();
+    echo "✅ MatchModel object created\n";
 
     $methods = [
         'getUsersWhoLikedSameRooms',
