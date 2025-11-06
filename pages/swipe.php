@@ -1311,16 +1311,38 @@ document.addEventListener('click', (e) => {
     }
 });
 
-function openDetailModal(card) {
+async function openDetailModal(card) {
     currentDetailCard = card;
     const modal = document.getElementById('detailModal');
-    const cardData = SEARCH_MODE === 'find_roommate'
-        ? getCardUserData(card)
-        : getCardRoomData(card);
 
-    renderDetailModal(cardData);
+    // Show loading state
+    document.getElementById('detailContent').innerHTML = '<div style="text-align: center; padding: 2rem;">Loading...</div>';
     modal.style.display = 'flex';
     document.body.style.overflow = 'hidden';
+
+    try {
+        // Fetch complete data from API
+        let cardData;
+        if (SEARCH_MODE === 'find_roommate') {
+            const userId = card.dataset.userId;
+            const response = await fetch(`${API_URL}/get-user-detail.php?user_id=${userId}`);
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+            cardData = result.data;
+        } else {
+            const roomId = card.dataset.roomId;
+            const response = await fetch(`${API_URL}/get-room-detail.php?room_id=${roomId}`);
+            const result = await response.json();
+            if (!result.success) throw new Error(result.message);
+            cardData = result.data;
+        }
+
+        // Render with complete data
+        renderDetailModal(cardData);
+    } catch (error) {
+        console.error('Error loading detail:', error);
+        document.getElementById('detailContent').innerHTML = '<div style="text-align: center; padding: 2rem; color: red;">Error loading data</div>';
+    }
 }
 
 function closeDetailModal() {
@@ -1372,8 +1394,12 @@ function renderDetailModal(data) {
 
     if (SEARCH_MODE === 'find_roommate') {
         // User detail
+        const avatarUrl = data.avatar
+            ? (data.avatar.startsWith('http') ? data.avatar : `${ASSETS_URL}/images/uploads/${data.avatar}`)
+            : `${ASSETS_URL}/images/default-avatar.svg`;
+
         gallery.innerHTML = `
-            <img src="${data.avatar || ASSETS_URL + '/images/default-avatar.svg'}"
+            <img src="${avatarUrl}"
                  class="detail-gallery-image" alt="${escapeHtml(data.name)}">
         `;
 
@@ -1390,8 +1416,11 @@ function renderDetailModal(data) {
             ${renderUserDetails(data)}
         `;
     } else {
-        // Room detail
-        const images = data.images || [];
+        // Room detail - format image URLs
+        const images = (data.images || []).map(img =>
+            img.startsWith('http') ? img : `${ASSETS_URL}/images/uploads/${img}`
+        );
+
         if (images.length > 1) {
             gallery.innerHTML = `
                 <div class="detail-gallery-track" id="galleryTrack">
@@ -1414,7 +1443,7 @@ function renderDetailModal(data) {
         }
 
         content.innerHTML = `
-            <h1 class="detail-title">${escapeHtml(data.price || '')}/tháng</h1>
+            <h1 class="detail-title">${formatPrice(data.price)}/tháng</h1>
             <div class="detail-location">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
