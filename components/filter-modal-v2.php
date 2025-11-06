@@ -3,6 +3,9 @@
  * RUMI - Enhanced Filter Modal V2
  * Tabbed interface with Mapbox location picker and lifestyle preferences
  */
+
+// Load dynamic lifestyle preferences
+require_once __DIR__ . '/filter-lifestyle-dynamic.php';
 ?>
 
 <!-- Enhanced Filter Modal -->
@@ -83,104 +86,11 @@
                 </div>
             </div>
 
-            <!-- TAB 2: LIFESTYLE -->
+            <!-- TAB 2: LIFESTYLE (Dynamic from Database) -->
             <div class="filter-tab-content" data-tab-content="lifestyle">
-                <!-- Sleep Schedule -->
-                <div class="filter-group">
-                    <label class="filter-label">😴 Lịch ngủ</label>
-                    <div class="filter-button-group">
-                        <button class="filter-option-btn" data-value="" data-filter="sleep">Bất kỳ</button>
-                        <button class="filter-option-btn" data-value="early_bird" data-filter="sleep">🌅 Sớm</button>
-                        <button class="filter-option-btn" data-value="night_owl" data-filter="sleep">🦉 Muộn</button>
-                        <button class="filter-option-btn" data-value="flexible" data-filter="sleep">🔄 Linh hoạt</button>
-                    </div>
-                </div>
-
-                <!-- Work Schedule -->
-                <div class="filter-group">
-                    <label class="filter-label">💼 Lịch làm việc</label>
-                    <div class="filter-button-group">
-                        <button class="filter-option-btn" data-value="" data-filter="work">Bất kỳ</button>
-                        <button class="filter-option-btn" data-value="office" data-filter="work">🏢 Văn phòng</button>
-                        <button class="filter-option-btn" data-value="shift" data-filter="work">🔄 Ca</button>
-                        <button class="filter-option-btn" data-value="wfh" data-filter="work">🏠 WFH</button>
-                        <button class="filter-option-btn" data-value="student" data-filter="work">🎓 Sinh viên</button>
-                    </div>
-                </div>
-
-                <!-- Cleanliness -->
-                <div class="filter-group">
-                    <label class="filter-label">✨ Mức độ sạch sẽ</label>
-                    <div class="filter-scale-group">
-                        <?php for ($i = 1; $i <= 5; $i++): ?>
-                            <button class="filter-scale-btn" data-value="<?= $i ?>" data-filter="cleanliness">
-                                <?= $i ?>
-                            </button>
-                        <?php endfor; ?>
-                    </div>
-                    <div class="filter-scale-labels">
-                        <span>Thoải mái</span>
-                        <span>Rất sạch</span>
-                    </div>
-                </div>
-
-                <!-- Noise Tolerance -->
-                <div class="filter-group">
-                    <label class="filter-label">🔊 Độ chịu đựng tiếng ồn</label>
-                    <div class="filter-scale-group">
-                        <?php for ($i = 1; $i <= 5; $i++): ?>
-                            <button class="filter-scale-btn" data-value="<?= $i ?>" data-filter="noise">
-                                <?= $i ?>
-                            </button>
-                        <?php endfor; ?>
-                    </div>
-                    <div class="filter-scale-labels">
-                        <span>Yên tĩnh</span>
-                        <span>OK với ồn</span>
-                    </div>
-                </div>
-
-                <!-- Smoking -->
-                <div class="filter-group">
-                    <label class="filter-label">🚬 Hút thuốc</label>
-                    <div class="filter-button-group">
-                        <button class="filter-option-btn" data-value="" data-filter="smoking">Bất kỳ</button>
-                        <button class="filter-option-btn" data-value="0" data-filter="smoking">Không hút</button>
-                        <button class="filter-option-btn" data-value="1" data-filter="smoking">Có hút</button>
-                    </div>
-                </div>
-
-                <!-- Drinking -->
-                <div class="filter-group">
-                    <label class="filter-label">🍺 Uống rượu / Tiệc tùng</label>
-                    <div class="filter-button-group">
-                        <button class="filter-option-btn" data-value="" data-filter="drinking">Bất kỳ</button>
-                        <button class="filter-option-btn" data-value="no" data-filter="drinking">Không</button>
-                        <button class="filter-option-btn" data-value="social" data-filter="drinking">Xã giao</button>
-                        <button class="filter-option-btn" data-value="frequent" data-filter="drinking">Thường xuyên</button>
-                    </div>
-                </div>
-
-                <!-- Pets -->
-                <div class="filter-group">
-                    <label class="filter-label">🐕 Thú cưng</label>
-                    <div class="filter-button-group">
-                        <button class="filter-option-btn" data-value="" data-filter="pets">Bất kỳ</button>
-                        <button class="filter-option-btn" data-value="0" data-filter="pets">Không nuôi</button>
-                        <button class="filter-option-btn" data-value="1" data-filter="pets">Có nuôi</button>
-                    </div>
-                </div>
-
-                <!-- Guests Policy -->
-                <div class="filter-group">
-                    <label class="filter-label">👥 Chính sách khách</label>
-                    <div class="filter-button-group">
-                        <button class="filter-option-btn" data-value="" data-filter="guests">Bất kỳ</button>
-                        <button class="filter-option-btn" data-value="no_guests" data-filter="guests">Không khách</button>
-                        <button class="filter-option-btn" data-value="occasional" data-filter="guests">Thỉnh thoảng</button>
-                        <button class="filter-option-btn" data-value="frequent" data-filter="guests">Thường xuyên</button>
-                    </div>
-                </div>
+                <?php foreach ($dynamicLifestylePrefs as $pref): ?>
+                    <?php renderPreferenceFilter($pref); ?>
+                <?php endforeach; ?>
             </div>
 
             <!-- TAB 3: ROOM DETAILS -->
