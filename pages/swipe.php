@@ -923,6 +923,61 @@ include __DIR__ . '/../components/filter-modal-v2.php';
     color: var(--color-gray-700);
 }
 
+/* Info Grid Layout for Key-Value Pairs */
+.detail-info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.detail-info-item {
+    background: #f9fafb;
+    padding: 0.75rem;
+    border-radius: 8px;
+}
+
+.detail-info-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+    margin-bottom: 0.25rem;
+}
+
+.detail-info-value {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-gray-900);
+}
+
+/* Color-Coded Tag Variants */
+.detail-tag-primary {
+    background: #dbeafe;
+    color: #1e40af;
+}
+
+.detail-tag-success {
+    background: #d1fae5;
+    color: #065f46;
+}
+
+.detail-tag-warning {
+    background: #fed7aa;
+    color: #92400e;
+}
+
+.detail-tag-info {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
+.detail-tag-secondary {
+    background: #e5e7eb;
+    color: #374151;
+}
+
 /* Action Buttons */
 .detail-actions {
     position: fixed;
@@ -1332,7 +1387,7 @@ function renderDetailModal(data) {
                 ${escapeHtml(data.district_name || '')}
             </div>
             ${data.bio ? `<p class="detail-bio">${escapeHtml(data.bio)}</p>` : ''}
-            ${renderUserPreferences(data.preferences || {})}
+            ${renderUserDetails(data)}
         `;
     } else {
         // Room detail
@@ -1374,54 +1429,188 @@ function renderDetailModal(data) {
     }
 }
 
-function renderUserPreferences(prefs) {
-    if (!prefs || Object.keys(prefs).length === 0) return '';
+// Enhanced User Details Rendering
+function renderUserDetails(data) {
+    let html = '';
 
-    let html = '<div class="detail-section"><div class="detail-section-title">Preferences</div><div class="detail-tags">';
+    // Basic Info Section
+    if (data.occupation || data.gender) {
+        html += '<div class="detail-section">';
+        html += '<div class="detail-section-title">👤 Basic Info</div>';
+        html += '<div class="detail-info-grid">';
 
-    if (prefs.budget_min && prefs.budget_max) {
-        html += `<div class="detail-tag">💰 ${formatPrice(prefs.budget_min)} - ${formatPrice(prefs.budget_max)}</div>`;
-    }
-    if (prefs.cleanliness) {
-        html += `<div class="detail-tag">✨ Cleanliness: ${prefs.cleanliness}/5</div>`;
-    }
-    if (prefs.noise_tolerance) {
-        html += `<div class="detail-tag">🔊 Noise: ${prefs.noise_tolerance}/5</div>`;
-    }
-    if (prefs.smoking === false) {
-        html += `<div class="detail-tag">🚭 No smoking</div>`;
-    }
-    if (prefs.pets === false) {
-        html += `<div class="detail-tag">🚫🐕 No pets</div>`;
+        if (data.occupation) {
+            html += `<div class="detail-info-item">
+                <div class="detail-info-label">💼 Occupation</div>
+                <div class="detail-info-value">${escapeHtml(data.occupation)}</div>
+            </div>`;
+        }
+
+        if (data.gender) {
+            const genderLabels = {male: 'Nam', female: 'Nữ', other: 'Khác'};
+            html += `<div class="detail-info-item">
+                <div class="detail-info-label">⚧ Gender</div>
+                <div class="detail-info-value">${genderLabels[data.gender] || data.gender}</div>
+            </div>`;
+        }
+
+        html += '</div></div>';
     }
 
-    html += '</div></div>';
+    // Lifestyle Preferences Section
+    if (data.sleep_schedule || data.work_schedule || data.drinking || data.guests_policy) {
+        html += '<div class="detail-section">';
+        html += '<div class="detail-section-title">🏠 Lifestyle</div>';
+        html += '<div class="detail-info-grid">';
+
+        if (data.sleep_schedule) {
+            const scheduleLabels = {
+                early_bird: '🌅 Early Bird',
+                night_owl: '🦉 Night Owl',
+                flexible: '⏰ Flexible'
+            };
+            html += `<div class="detail-info-item">
+                <div class="detail-info-label">Sleep Schedule</div>
+                <div class="detail-info-value">${scheduleLabels[data.sleep_schedule] || data.sleep_schedule}</div>
+            </div>`;
+        }
+
+        if (data.work_schedule) {
+            const workLabels = {
+                office: '🏢 Office (9-5)',
+                shift: '🔄 Shift Work',
+                wfh: '🏡 Work from Home',
+                student: '📚 Student'
+            };
+            html += `<div class="detail-info-item">
+                <div class="detail-info-label">Work Schedule</div>
+                <div class="detail-info-value">${workLabels[data.work_schedule] || data.work_schedule}</div>
+            </div>`;
+        }
+
+        if (data.drinking) {
+            const drinkLabels = {
+                no: '🚫 No Drinking',
+                social: '🍺 Social Drinker',
+                frequent: '🍻 Frequent'
+            };
+            html += `<div class="detail-info-item">
+                <div class="detail-info-label">Drinking</div>
+                <div class="detail-info-value">${drinkLabels[data.drinking] || data.drinking}</div>
+            </div>`;
+        }
+
+        if (data.guests_policy) {
+            const guestLabels = {
+                no_guests: '🚫 No Guests',
+                occasional: '👥 Occasional OK',
+                frequent: '🎉 Guests Welcome'
+            };
+            html += `<div class="detail-info-item">
+                <div class="detail-info-label">Guests Policy</div>
+                <div class="detail-info-value">${guestLabels[data.guests_policy] || data.guests_policy}</div>
+            </div>`;
+        }
+
+        html += '</div></div>';
+    }
+
+    // Budget & Preferences from JSON
+    const prefs = data.preferences || {};
+    if (prefs.budget_min || prefs.cleanliness || prefs.noise_tolerance || prefs.smoking !== undefined || prefs.pets !== undefined) {
+        html += '<div class="detail-section">';
+        html += '<div class="detail-section-title">⚖️ Preferences</div>';
+        html += '<div class="detail-tags">';
+
+        if (prefs.budget_min && prefs.budget_max) {
+            html += `<div class="detail-tag detail-tag-primary">💰 ${formatPrice(prefs.budget_min)} - ${formatPrice(prefs.budget_max)}</div>`;
+        }
+
+        if (prefs.cleanliness) {
+            const stars = '⭐'.repeat(prefs.cleanliness);
+            html += `<div class="detail-tag detail-tag-success">✨ Cleanliness ${stars}</div>`;
+        }
+
+        if (prefs.noise_tolerance) {
+            const level = prefs.noise_tolerance <= 2 ? 'Quiet' : prefs.noise_tolerance == 3 ? 'Moderate' : 'Tolerant';
+            html += `<div class="detail-tag detail-tag-info">🔊 Noise: ${level}</div>`;
+        }
+
+        if (prefs.smoking === false) {
+            html += `<div class="detail-tag detail-tag-warning">🚭 No Smoking</div>`;
+        } else if (prefs.smoking === true) {
+            html += `<div class="detail-tag detail-tag-secondary">🚬 Smoking OK</div>`;
+        }
+
+        if (prefs.pets === false) {
+            html += `<div class="detail-tag detail-tag-warning">🚫🐕 No Pets</div>`;
+        } else if (prefs.pets === true) {
+            html += `<div class="detail-tag detail-tag-success">🐕 Pet Friendly</div>`;
+        }
+
+        html += '</div></div>';
+    }
+
     return html;
 }
 
+// Enhanced Room Amenities Rendering
 function renderRoomAmenities(amenities, area) {
-    let html = '<div class="detail-section"><div class="detail-section-title">Features</div><div class="detail-tags">';
+    let html = '';
+
+    // Property Details
+    html += '<div class="detail-section">';
+    html += '<div class="detail-section-title">📐 Property Details</div>';
+    html += '<div class="detail-info-grid">';
 
     if (area) {
-        html += `<div class="detail-tag">📐 ${area}m²</div>`;
-    }
-
-    const amenityLabels = {
-        'wifi': '📶 Wifi',
-        'ac': '❄️ AC',
-        'kitchen': '🍳 Kitchen',
-        'parking': '🅿️ Parking',
-        'laundry': '🧺 Laundry',
-        'furniture': '🛋️ Furniture'
-    };
-
-    for (const [key, label] of Object.entries(amenityLabels)) {
-        if (amenities[key]) {
-            html += `<div class="detail-tag">${label}</div>`;
-        }
+        html += `<div class="detail-info-item">
+            <div class="detail-info-label">Area</div>
+            <div class="detail-info-value">${area}m²</div>
+        </div>`;
     }
 
     html += '</div></div>';
+
+    // Amenities Section
+    const amenityLabels = {
+        'wifi': {icon: '📶', label: 'Wifi'},
+        'ac': {icon: '❄️', label: 'Air Conditioning'},
+        'kitchen': {icon: '🍳', label: 'Kitchen'},
+        'parking': {icon: '🅿️', label: 'Parking'},
+        'laundry': {icon: '🧺', label: 'Washing Machine'},
+        'furniture': {icon: '🛋️', label: 'Furnished'},
+        'elevator': {icon: '🛗', label: 'Elevator'},
+        'security': {icon: '🔒', label: 'Security'},
+        'balcony': {icon: '🌿', label: 'Balcony'},
+        'gym': {icon: '💪', label: 'Gym'},
+        'pool': {icon: '🏊', label: 'Swimming Pool'},
+        'pet_friendly': {icon: '🐕', label: 'Pet Friendly'}
+    };
+
+    const availableAmenities = [];
+    const notAvailable = [];
+
+    for (const [key, info] of Object.entries(amenityLabels)) {
+        if (amenities[key] === true || amenities[key] === 1) {
+            availableAmenities.push({...info, key});
+        } else if (amenities[key] === false || amenities[key] === 0) {
+            notAvailable.push({...info, key});
+        }
+    }
+
+    if (availableAmenities.length > 0) {
+        html += '<div class="detail-section">';
+        html += '<div class="detail-section-title">✅ Amenities</div>';
+        html += '<div class="detail-tags">';
+
+        availableAmenities.forEach(item => {
+            html += `<div class="detail-tag detail-tag-success">${item.icon} ${item.label}</div>`;
+        });
+
+        html += '</div></div>';
+    }
+
     return html;
 }
 
