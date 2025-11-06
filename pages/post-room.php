@@ -36,7 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Validate input
-        if (empty($_POST['title']) || empty($_POST['price']) || empty($_POST['district_id']) || empty($_POST['address'])) {
+        if (empty($_POST['title']) || empty($_POST['price']) || empty($_POST['district_id']) || empty($_POST['address']) || empty($_POST['room_type'])) {
             throw new Exception('Vui lòng điền đầy đủ thông tin bắt buộc');
         }
 
@@ -52,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'description' => sanitizeInput($_POST['description'] ?? ''),
             'price' => (int)$_POST['price'],
             'area' => !empty($_POST['area']) ? (float)$_POST['area'] : null,
+            'room_type' => sanitizeInput($_POST['room_type']),
             'district_id' => (int)$_POST['district_id'],
             'address' => sanitizeInput($_POST['address']),
             'amenities' => $amenitiesData,
@@ -109,6 +110,18 @@ include __DIR__ . '/../components/header.php';
                     <input type="number" id="area" name="area" class="form-control" step="0.1"
                            placeholder="25"
                            value="<?= e($_POST['area'] ?? '') ?>">
+                </div>
+
+                <!-- Loại phòng -->
+                <div class="form-group">
+                    <label for="room_type" class="form-label required">Loại phòng</label>
+                    <select id="room_type" name="room_type" class="form-control" required>
+                        <option value="">Chọn loại phòng</option>
+                        <option value="apartment" <?= ($_POST['room_type'] ?? '') == 'apartment' ? 'selected' : '' ?>>🏢 Chung cư</option>
+                        <option value="house" <?= ($_POST['room_type'] ?? '') == 'house' ? 'selected' : '' ?>>🏘️ Nhà riêng</option>
+                        <option value="mini_apartment" <?= ($_POST['room_type'] ?? '') == 'mini_apartment' ? 'selected' : '' ?>>🏡 Mini apartment</option>
+                        <option value="villa" <?= ($_POST['room_type'] ?? '') == 'villa' ? 'selected' : '' ?>>🏰 Villa</option>
+                    </select>
                 </div>
 
                 <!-- Quận/Huyện -->
