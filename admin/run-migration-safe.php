@@ -242,7 +242,7 @@ try {
                END as config_status
         FROM preferences_list
         WHERE is_active = 1
-        ORDER BY category, sort_order
+        ORDER BY code
     ")->fetchAll(PDO::FETCH_ASSOC);
 
     echo "\n<span class='status-success'>Total Active Preferences: " . count($results) . "</span>\n";
