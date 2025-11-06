@@ -1484,12 +1484,12 @@ function renderUserDetails(data) {
     // Basic Info Section
     if (data.occupation || data.gender) {
         html += '<div class="detail-section">';
-        html += '<div class="detail-section-title">👤 Basic Info</div>';
+        html += '<div class="detail-section-title">👤 Thông tin cơ bản</div>';
         html += '<div class="detail-info-grid">';
 
         if (data.occupation) {
             html += `<div class="detail-info-item">
-                <div class="detail-info-label">💼 Occupation</div>
+                <div class="detail-info-label">💼 Nghề nghiệp</div>
                 <div class="detail-info-value">${escapeHtml(data.occupation)}</div>
             </div>`;
         }
@@ -1497,7 +1497,7 @@ function renderUserDetails(data) {
         if (data.gender) {
             const genderLabels = {male: 'Nam', female: 'Nữ', other: 'Khác'};
             html += `<div class="detail-info-item">
-                <div class="detail-info-label">⚧ Gender</div>
+                <div class="detail-info-label">⚧ Giới tính</div>
                 <div class="detail-info-value">${genderLabels[data.gender] || data.gender}</div>
             </div>`;
         }
@@ -1508,54 +1508,54 @@ function renderUserDetails(data) {
     // Lifestyle Preferences Section
     if (data.sleep_schedule || data.work_schedule || data.drinking || data.guests_policy) {
         html += '<div class="detail-section">';
-        html += '<div class="detail-section-title">🏠 Lifestyle</div>';
+        html += '<div class="detail-section-title">🏠 Lối sống</div>';
         html += '<div class="detail-info-grid">';
 
         if (data.sleep_schedule) {
             const scheduleLabels = {
-                early_bird: '🌅 Early Bird',
-                night_owl: '🦉 Night Owl',
-                flexible: '⏰ Flexible'
+                early_bird: '🌅 Dậy sớm',
+                night_owl: '🦉 Thức khuya',
+                flexible: '⏰ Linh hoạt'
             };
             html += `<div class="detail-info-item">
-                <div class="detail-info-label">Sleep Schedule</div>
+                <div class="detail-info-label">Giờ ngủ</div>
                 <div class="detail-info-value">${scheduleLabels[data.sleep_schedule] || data.sleep_schedule}</div>
             </div>`;
         }
 
         if (data.work_schedule) {
             const workLabels = {
-                office: '🏢 Office (9-5)',
-                shift: '🔄 Shift Work',
-                wfh: '🏡 Work from Home',
-                student: '📚 Student'
+                office: '🏢 Văn phòng (9-5)',
+                shift: '🔄 Ca xoay',
+                wfh: '🏡 Làm từ xa',
+                student: '📚 Sinh viên'
             };
             html += `<div class="detail-info-item">
-                <div class="detail-info-label">Work Schedule</div>
+                <div class="detail-info-label">Giờ làm việc</div>
                 <div class="detail-info-value">${workLabels[data.work_schedule] || data.work_schedule}</div>
             </div>`;
         }
 
         if (data.drinking) {
             const drinkLabels = {
-                no: '🚫 No Drinking',
-                social: '🍺 Social Drinker',
-                frequent: '🍻 Frequent'
+                no: '🚫 Không uống',
+                social: '🍺 Uống xã giao',
+                frequent: '🍻 Thường xuyên'
             };
             html += `<div class="detail-info-item">
-                <div class="detail-info-label">Drinking</div>
+                <div class="detail-info-label">Uống rượu</div>
                 <div class="detail-info-value">${drinkLabels[data.drinking] || data.drinking}</div>
             </div>`;
         }
 
         if (data.guests_policy) {
             const guestLabels = {
-                no_guests: '🚫 No Guests',
-                occasional: '👥 Occasional OK',
-                frequent: '🎉 Guests Welcome'
+                no_guests: '🚫 Không khách',
+                occasional: '👥 Thỉnh thoảng',
+                frequent: '🎉 Chào đón khách'
             };
             html += `<div class="detail-info-item">
-                <div class="detail-info-label">Guests Policy</div>
+                <div class="detail-info-label">Chính sách khách</div>
                 <div class="detail-info-value">${guestLabels[data.guests_policy] || data.guests_policy}</div>
             </div>`;
         }
@@ -1567,7 +1567,7 @@ function renderUserDetails(data) {
     const prefs = data.preferences || {};
     if (prefs.budget_min || prefs.cleanliness || prefs.noise_tolerance || prefs.smoking !== undefined || prefs.pets !== undefined) {
         html += '<div class="detail-section">';
-        html += '<div class="detail-section-title">⚖️ Preferences</div>';
+        html += '<div class="detail-section-title">⚖️ Sở thích</div>';
         html += '<div class="detail-tags">';
 
         if (prefs.budget_min && prefs.budget_max) {
@@ -1576,24 +1576,24 @@ function renderUserDetails(data) {
 
         if (prefs.cleanliness) {
             const stars = '⭐'.repeat(prefs.cleanliness);
-            html += `<div class="detail-tag detail-tag-success">✨ Cleanliness ${stars}</div>`;
+            html += `<div class="detail-tag detail-tag-success">✨ Sạch sẽ ${stars}</div>`;
         }
 
         if (prefs.noise_tolerance) {
-            const level = prefs.noise_tolerance <= 2 ? 'Quiet' : prefs.noise_tolerance == 3 ? 'Moderate' : 'Tolerant';
-            html += `<div class="detail-tag detail-tag-info">🔊 Noise: ${level}</div>`;
+            const level = prefs.noise_tolerance <= 2 ? 'Yên tĩnh' : prefs.noise_tolerance == 3 ? 'Trung bình' : 'Chấp nhận được';
+            html += `<div class="detail-tag detail-tag-info">🔊 Tiếng ồn: ${level}</div>`;
         }
 
         if (prefs.smoking === false) {
-            html += `<div class="detail-tag detail-tag-warning">🚭 No Smoking</div>`;
+            html += `<div class="detail-tag detail-tag-warning">🚭 Không hút thuốc</div>`;
         } else if (prefs.smoking === true) {
-            html += `<div class="detail-tag detail-tag-secondary">🚬 Smoking OK</div>`;
+            html += `<div class="detail-tag detail-tag-secondary">🚬 Cho phép hút thuốc</div>`;
         }
 
         if (prefs.pets === false) {
-            html += `<div class="detail-tag detail-tag-warning">🚫🐕 No Pets</div>`;
+            html += `<div class="detail-tag detail-tag-warning">🚫🐕 Không thú cưng</div>`;
         } else if (prefs.pets === true) {
-            html += `<div class="detail-tag detail-tag-success">🐕 Pet Friendly</div>`;
+            html += `<div class="detail-tag detail-tag-success">🐕 Cho phép thú cưng</div>`;
         }
 
         html += '</div></div>';
@@ -1608,12 +1608,12 @@ function renderRoomAmenities(amenities, area) {
 
     // Property Details
     html += '<div class="detail-section">';
-    html += '<div class="detail-section-title">📐 Property Details</div>';
+    html += '<div class="detail-section-title">📐 Thông tin phòng</div>';
     html += '<div class="detail-info-grid">';
 
     if (area) {
         html += `<div class="detail-info-item">
-            <div class="detail-info-label">Area</div>
+            <div class="detail-info-label">Diện tích</div>
             <div class="detail-info-value">${area}m²</div>
         </div>`;
     }
@@ -1623,17 +1623,17 @@ function renderRoomAmenities(amenities, area) {
     // Amenities Section
     const amenityLabels = {
         'wifi': {icon: '📶', label: 'Wifi'},
-        'ac': {icon: '❄️', label: 'Air Conditioning'},
-        'kitchen': {icon: '🍳', label: 'Kitchen'},
-        'parking': {icon: '🅿️', label: 'Parking'},
-        'laundry': {icon: '🧺', label: 'Washing Machine'},
-        'furniture': {icon: '🛋️', label: 'Furnished'},
-        'elevator': {icon: '🛗', label: 'Elevator'},
-        'security': {icon: '🔒', label: 'Security'},
-        'balcony': {icon: '🌿', label: 'Balcony'},
-        'gym': {icon: '💪', label: 'Gym'},
-        'pool': {icon: '🏊', label: 'Swimming Pool'},
-        'pet_friendly': {icon: '🐕', label: 'Pet Friendly'}
+        'ac': {icon: '❄️', label: 'Điều hòa'},
+        'kitchen': {icon: '🍳', label: 'Bếp'},
+        'parking': {icon: '🅿️', label: 'Chỗ đậu xe'},
+        'laundry': {icon: '🧺', label: 'Máy giặt'},
+        'furniture': {icon: '🛋️', label: 'Nội thất'},
+        'elevator': {icon: '🛗', label: 'Thang máy'},
+        'security': {icon: '🔒', label: 'An ninh'},
+        'balcony': {icon: '🌿', label: 'Ban công'},
+        'gym': {icon: '💪', label: 'Phòng gym'},
+        'pool': {icon: '🏊', label: 'Hồ bơi'},
+        'pet_friendly': {icon: '🐕', label: 'Cho phép thú cưng'}
     };
 
     const availableAmenities = [];
@@ -1649,7 +1649,7 @@ function renderRoomAmenities(amenities, area) {
 
     if (availableAmenities.length > 0) {
         html += '<div class="detail-section">';
-        html += '<div class="detail-section-title">✅ Amenities</div>';
+        html += '<div class="detail-section-title">✅ Tiện nghi</div>';
         html += '<div class="detail-tags">';
 
         availableAmenities.forEach(item => {

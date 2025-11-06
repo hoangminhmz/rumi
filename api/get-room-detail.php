@@ -42,7 +42,7 @@ try {
             u.phone as owner_phone
         FROM rooms r
         LEFT JOIN districts d ON r.district_id = d.id
-        LEFT JOIN users u ON r.user_id = u.id
+        LEFT JOIN users u ON r.owner_id = u.id
         WHERE r.id = ? AND r.status = 'active'
     ");
 
