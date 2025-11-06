@@ -17,6 +17,16 @@ $userModel = new User();
 $roomModel = new Room();
 $districts = $userModel->getDistricts();
 
+// Load amenities from database
+$db = getDB();
+$amenitiesStmt = $db->query("
+    SELECT id, code, name_vi, name_en, icon, sort_order
+    FROM amenities_list
+    WHERE is_active = 1
+    ORDER BY sort_order ASC
+");
+$amenities = $amenitiesStmt->fetchAll(PDO::FETCH_ASSOC);
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -30,10 +40,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception('Vui lòng điền đầy đủ thông tin bắt buộc');
         }
 
-        // Build amenities array
-        $amenities = [];
-        foreach (AMENITIES as $key => $label) {
-            $amenities[$key] = isset($_POST['amenities'][$key]);
+        // Build amenities array from dynamic database values
+        $amenitiesData = [];
+        foreach ($amenities as $amenity) {
+            $amenitiesData[$amenity['code']] = isset($_POST['amenities'][$amenity['code']]);
         }
 
         // Create room
@@ -44,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'area' => !empty($_POST['area']) ? (float)$_POST['area'] : null,
             'district_id' => (int)$_POST['district_id'],
             'address' => sanitizeInput($_POST['address']),
-            'amenities' => $amenities,
+            'amenities' => $amenitiesData,
             'images' => [] // Will be handled after payment
         ];
 
@@ -142,12 +152,12 @@ include __DIR__ . '/../components/header.php';
                 <div class="form-group">
                     <label class="form-label">Tiện nghi</label>
                     <div class="row">
-                        <?php foreach (AMENITIES as $key => $label): ?>
+                        <?php foreach ($amenities as $amenity): ?>
                         <div class="col-6 mb-2">
                             <label style="display: flex; align-items: center; gap: var(--space-1); cursor: pointer;">
-                                <input type="checkbox" name="amenities[<?= e($key) ?>]" value="1"
-                                       <?= isset($_POST['amenities'][$key]) ? 'checked' : '' ?>>
-                                <span><?= e($label) ?></span>
+                                <input type="checkbox" name="amenities[<?= e($amenity['code']) ?>]" value="1"
+                                       <?= isset($_POST['amenities'][$amenity['code']]) ? 'checked' : '' ?>>
+                                <span><?= e($amenity['icon']) ?> <?= e($amenity['name_vi']) ?></span>
                             </label>
                         </div>
                         <?php endforeach; ?>

@@ -23,6 +23,21 @@ if ($userModel->hasCompleteProfile(getCurrentUserId()) && !isset($_GET['edit']))
 // Get districts
 $districts = $userModel->getDistricts();
 
+// Load lifestyle preferences from database
+$db = getDB();
+$lifestylePrefsStmt = $db->query("
+    SELECT code, name_vi, name_en, icon, field_type, options_config, description_vi
+    FROM preferences_list
+    WHERE code IN ('sleep_schedule', 'work_schedule', 'drinking', 'guests_policy')
+      AND is_active = 1
+    ORDER BY weight DESC
+");
+$lifestylePreferences = [];
+while ($pref = $lifestylePrefsStmt->fetch(PDO::FETCH_ASSOC)) {
+    $pref['options'] = !empty($pref['options_config']) ? json_decode($pref['options_config'], true) : null;
+    $lifestylePreferences[$pref['code']] = $pref;
+}
+
 // Handle form submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -61,7 +76,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'cleanliness' => (int)($_POST['cleanliness'] ?? 3),
             'noise_tolerance' => (int)($_POST['noise_tolerance'] ?? 3),
             'smoking' => isset($_POST['smoking']),
-            'pets' => isset($_POST['pets'])
+            'pets' => isset($_POST['pets']),
+            // Lifestyle preferences
+            'sleep_schedule' => $_POST['sleep_schedule'] ?? null,
+            'work_schedule' => $_POST['work_schedule'] ?? null,
+            'drinking' => $_POST['drinking'] ?? null,
+            'guests_policy' => $_POST['guests_policy'] ?? null
         ];
 
         // Update profile
@@ -185,6 +205,29 @@ include __DIR__ . '/../components/header.php';
                 <hr>
 
                 <h3 style="font-size: var(--font-size-lg); margin-bottom: var(--space-3);">Preferences</h3>
+
+                <!-- Lifestyle Preferences (Dynamic) -->
+                <?php foreach ($lifestylePreferences as $code => $pref): ?>
+                    <?php if (!empty($pref['options']['options'])): ?>
+                    <div class="form-group">
+                        <label for="<?= e($code) ?>" class="form-label">
+                            <?= e($pref['icon']) ?> <?= e($pref['name_vi']) ?>
+                        </label>
+                        <?php if (!empty($pref['description_vi'])): ?>
+                            <small class="text-secondary d-block mb-1"><?= e($pref['description_vi']) ?></small>
+                        <?php endif; ?>
+                        <select id="<?= e($code) ?>" name="<?= e($code) ?>" class="form-control">
+                            <option value="">-- Chọn --</option>
+                            <?php foreach ($pref['options']['options'] as $option): ?>
+                                <option value="<?= e($option['code']) ?>"
+                                    <?= ($currentUser['preferences'][$code] ?? '') === $option['code'] ? 'selected' : '' ?>>
+                                    <?= e($option['icon'] ?? '') ?> <?= e($option['name_vi']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <?php endif; ?>
+                <?php endforeach; ?>
 
                 <!-- Budget -->
                 <div class="form-group">

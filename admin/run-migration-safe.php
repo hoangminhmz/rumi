@@ -165,11 +165,21 @@ try {
 
     $preferences = [
         'sleep_schedule' => [
+            'name_vi' => 'Lịch ngủ',
+            'name_en' => 'Sleep Schedule',
+            'icon' => '😴',
+            'weight' => 20,
+            'category' => 'lifestyle',
             'field_type' => 'enum',
             'options_config' => '{"options":[{"code":"early_bird","name_vi":"Dậy sớm","name_en":"Early Bird","icon":"🌅"},{"code":"night_owl","name_vi":"Thức khuya","name_en":"Night Owl","icon":"🦉"},{"code":"flexible","name_vi":"Linh hoạt","name_en":"Flexible","icon":"⏰"}]}',
             'description_vi' => 'Lịch ngủ và thời gian hoạt động của bạn'
         ],
         'work_schedule' => [
+            'name_vi' => 'Lịch làm việc',
+            'name_en' => 'Work Schedule',
+            'icon' => '💼',
+            'weight' => 15,
+            'category' => 'lifestyle',
             'field_type' => 'enum',
             'options_config' => '{"options":[{"code":"office","name_vi":"Văn phòng (9-5)","name_en":"Office (9-5)","icon":"🏢"},{"code":"shift","name_vi":"Ca xoay","name_en":"Shift Work","icon":"🔄"},{"code":"wfh","name_vi":"Làm từ xa","name_en":"Work from Home","icon":"🏡"},{"code":"student","name_vi":"Sinh viên","name_en":"Student","icon":"📚"}]}',
             'description_vi' => 'Lịch làm việc hoặc học tập'
@@ -211,22 +221,50 @@ try {
         ]
     ];
 
-    $stmt = $db->prepare("UPDATE preferences_list SET field_type = ?, options_config = ?, description_vi = ? WHERE code = ?");
-
+    $insertCount = 0;
     $updateCount = 0;
-    foreach ($preferences as $code => $data) {
-        $affected = $stmt->execute([
-            $data['field_type'],
-            $data['options_config'],
-            $data['description_vi'],
-            $code
-        ]);
 
-        if ($stmt->rowCount() > 0) {
-            echo "<span class='status-success'>  ✓ Updated: {$code}</span>\n";
-            $updateCount++;
+    foreach ($preferences as $code => $data) {
+        // Check if preference exists
+        $checkStmt = $db->prepare("SELECT id FROM preferences_list WHERE code = ?");
+        $checkStmt->execute([$code]);
+        $exists = $checkStmt->fetch();
+
+        if (!$exists) {
+            // INSERT new preference
+            $insertStmt = $db->prepare("
+                INSERT INTO preferences_list (code, name_vi, name_en, icon, weight, category, field_type, options_config, description_vi, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+            ");
+            $insertStmt->execute([
+                $code,
+                $data['name_vi'] ?? $code,
+                $data['name_en'] ?? $code,
+                $data['icon'] ?? '📌',
+                $data['weight'] ?? 10,
+                $data['category'] ?? 'lifestyle',
+                $data['field_type'],
+                $data['options_config'],
+                $data['description_vi']
+            ]);
+            echo "<span class='status-success'>  ✓ Inserted: {$code}</span>\n";
+            $insertCount++;
         } else {
-            echo "<span class='status-warning'>  ⚠️  Not found or unchanged: {$code}</span>\n";
+            // UPDATE existing preference
+            $updateStmt = $db->prepare("UPDATE preferences_list SET field_type = ?, options_config = ?, description_vi = ? WHERE code = ?");
+            $updateStmt->execute([
+                $data['field_type'],
+                $data['options_config'],
+                $data['description_vi'],
+                $code
+            ]);
+
+            if ($updateStmt->rowCount() > 0) {
+                echo "<span class='status-success'>  ✓ Updated: {$code}</span>\n";
+                $updateCount++;
+            } else {
+                echo "<span class='status-info'>  = Unchanged: {$code}</span>\n";
+            }
         }
     }
 
