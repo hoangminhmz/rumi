@@ -225,6 +225,10 @@ $recentRooms = $db->query("
             <a href="dashboard.php">Dashboard</a>
             <a href="users.php">Users</a>
             <a href="rooms.php">Rooms</a>
+            <a href="matches.php">Matches</a>
+            <a href="swipes.php">Swipes</a>
+            <a href="amenities.php">Amenities</a>
+            <a href="preferences.php">Preferences</a>
             <a href="logout.php">Logout</a>
         </nav>
     </div>
