@@ -1325,15 +1325,27 @@ async function openDetailModal(card) {
         let cardData;
         if (SEARCH_MODE === 'find_roommate') {
             const userId = card.dataset.userId;
+            console.log('Fetching user detail for ID:', userId);
             const response = await fetch(`${API_URL}/get-user-detail.php?user_id=${userId}`);
+            console.log('Response status:', response.status);
             const result = await response.json();
-            if (!result.success) throw new Error(result.message);
+            console.log('API result:', result);
+            if (!result.success) {
+                console.error('API Error:', result.message, result.error_detail);
+                throw new Error(result.message || 'Failed to load user data');
+            }
             cardData = result.data;
         } else {
             const roomId = card.dataset.roomId;
+            console.log('Fetching room detail for ID:', roomId);
             const response = await fetch(`${API_URL}/get-room-detail.php?room_id=${roomId}`);
+            console.log('Response status:', response.status);
             const result = await response.json();
-            if (!result.success) throw new Error(result.message);
+            console.log('API result:', result);
+            if (!result.success) {
+                console.error('API Error:', result.message, result.error_detail);
+                throw new Error(result.message || 'Failed to load room data');
+            }
             cardData = result.data;
         }
 
@@ -1341,7 +1353,14 @@ async function openDetailModal(card) {
         renderDetailModal(cardData);
     } catch (error) {
         console.error('Error loading detail:', error);
-        document.getElementById('detailContent').innerHTML = '<div style="text-align: center; padding: 2rem; color: red;">Error loading data</div>';
+        const errorMsg = error.message || 'Unknown error';
+        document.getElementById('detailContent').innerHTML = `
+            <div style="text-align: center; padding: 2rem; color: red;">
+                <p style="font-weight: bold;">Error loading data</p>
+                <p style="font-size: 0.9rem; color: #666;">${escapeHtml(errorMsg)}</p>
+                <p style="font-size: 0.85rem; color: #999;">Check console for details (F12)</p>
+            </div>
+        `;
     }
 }
 
