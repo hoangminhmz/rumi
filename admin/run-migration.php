@@ -127,9 +127,9 @@ try {
         echo "<span class='status-info'>✓ Preferences table has {$count} records</span>\n\n";
     }
 
-    // Run migration 1: Add columns
+    // Run migration 1: Add columns (use v2 - safer version)
     echo "<span class='status-info'>📦 Running Migration 1: Add preference options config...</span>\n";
-    $migration1 = file_get_contents(__DIR__ . '/../database/migrations/add_preference_options_config.sql');
+    $migration1 = file_get_contents(__DIR__ . '/../database/migrations/add_preference_options_config_v2.sql');
 
     $statements = array_filter(
         array_map('trim', explode(';', $migration1)),
@@ -153,9 +153,9 @@ try {
     }
     echo "<span class='status-success'>✅ Migration 1 completed</span>\n\n";
 
-    // Run migration 2: Seed data
+    // Run migration 2: Seed data (use v2 - safer version with TEXT instead of JSON)
     echo "<span class='status-info'>📦 Running Migration 2: Seed preference options...</span>\n";
-    $migration2 = file_get_contents(__DIR__ . '/../database/migrations/seed_preference_options.sql');
+    $migration2 = file_get_contents(__DIR__ . '/../database/migrations/seed_preference_options_v2.sql');
 
     $statements = array_filter(
         array_map('trim', explode(';', $migration2)),
