@@ -23,8 +23,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     switch ($action) {
         case 'add':
             $stmt = $db->prepare("
-                INSERT INTO preferences_list (code, name_vi, name_en, icon, weight, category, is_active)
-                VALUES (?, ?, ?, ?, ?, ?, 1)
+                INSERT INTO preferences_list (code, name_vi, name_en, icon, weight, category, field_type, description_vi, description_en, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
             ");
             $stmt->execute([
                 $_POST['code'],
@@ -32,7 +32,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_POST['name_en'],
                 $_POST['icon'],
                 (int)$_POST['weight'],
-                $_POST['category']
+                $_POST['category'],
+                $_POST['field_type'] ?? 'scale',
+                $_POST['description_vi'] ?? '',
+                $_POST['description_en'] ?? ''
             ]);
             setFlash('success', 'Preference added successfully');
             break;
@@ -40,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         case 'edit':
             $stmt = $db->prepare("
                 UPDATE preferences_list
-                SET code = ?, name_vi = ?, name_en = ?, icon = ?, weight = ?, category = ?
+                SET code = ?, name_vi = ?, name_en = ?, icon = ?, weight = ?, category = ?, field_type = ?, description_vi = ?, description_en = ?
                 WHERE id = ?
             ");
             $stmt->execute([
@@ -50,9 +53,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_POST['icon'],
                 (int)$_POST['weight'],
                 $_POST['category'],
+                $_POST['field_type'] ?? 'scale',
+                $_POST['description_vi'] ?? '',
+                $_POST['description_en'] ?? '',
                 (int)$_POST['id']
             ]);
             setFlash('success', 'Preference updated successfully');
+            break;
+
+        case 'update_options':
+            // Update options_config JSON
+            $optionsJson = $_POST['options_config'] ?? '{"options":[]}';
+            $stmt = $db->prepare("UPDATE preferences_list SET options_config = ? WHERE id = ?");
+            $stmt->execute([$optionsJson, (int)$_POST['id']]);
+            setFlash('success', 'Options updated successfully');
             break;
 
         case 'toggle':
@@ -83,6 +97,19 @@ if (isset($_GET['edit'])) {
     $stmt = $db->prepare("SELECT * FROM preferences_list WHERE id = ?");
     $stmt->execute([(int)$_GET['edit']]);
     $editItem = $stmt->fetch();
+}
+
+// Get manage options item if requested
+$manageOptionsItem = null;
+if (isset($_GET['manage_options'])) {
+    $stmt = $db->prepare("SELECT * FROM preferences_list WHERE id = ?");
+    $stmt->execute([(int)$_GET['manage_options']]);
+    $manageOptionsItem = $stmt->fetch();
+    if ($manageOptionsItem) {
+        $manageOptionsItem['parsed_options'] = !empty($manageOptionsItem['options_config'])
+            ? json_decode($manageOptionsItem['options_config'], true)
+            : ['options' => []];
+    }
 }
 
 // Group by category for display
@@ -143,6 +170,16 @@ $flash = getFlash();
         .info-box { background: #e0e7ff; padding: 1rem; border-radius: 8px; margin-bottom: 2rem; color: #3730a3; }
         .info-box strong { display: block; margin-bottom: 0.5rem; }
         .weight-indicator { display: inline-block; padding: 0.25rem 0.5rem; background: #fef3c7; color: #92400e; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+        .field-type-badge { display: inline-block; padding: 0.25rem 0.5rem; background: #dbeafe; color: #1e40af; border-radius: 6px; font-size: 0.75rem; font-weight: 600; }
+        .options-card { background: #f9fafb; padding: 1.5rem; border-radius: 8px; margin-top: 1rem; border: 2px dashed #d1d5db; }
+        .option-item { background: white; padding: 1rem; border-radius: 6px; margin-bottom: 0.75rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .option-item-fields { display: grid; grid-template-columns: 150px 1fr 1fr 80px; gap: 0.75rem; flex: 1; }
+        .btn-icon { padding: 0.5rem; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; }
+        .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 999; display: none; }
+        .modal-content { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; border-radius: 12px; padding: 2rem; max-width: 900px; width: 90%; max-height: 90vh; overflow-y: auto; z-index: 1000; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
+        .modal-content.show { display: block; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 2px solid #e5e7eb; }
+        .close-modal { cursor: pointer; font-size: 1.5rem; color: #6b7280; }
     </style>
 </head>
 <body>
@@ -187,7 +224,7 @@ $flash = getFlash();
                     <input type="hidden" name="id" value="<?= $editItem['id'] ?>">
                 <?php endif; ?>
 
-                <div class="form-grid">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1rem;">
                     <div class="form-group">
                         <label>Code (unique key) *</label>
                         <input type="text" name="code" class="form-control"
@@ -235,7 +272,33 @@ $flash = getFlash();
                     </div>
 
                     <div class="form-group">
-                        <button type="submit" class="btn btn-primary" style="width: 100%;">
+                        <label>Field Type *</label>
+                        <select name="field_type" class="form-control" required>
+                            <option value="enum" <?= ($editItem['field_type'] ?? '') == 'enum' ? 'selected' : '' ?>>Enum (Dropdown)</option>
+                            <option value="scale" <?= ($editItem['field_type'] ?? 'scale') == 'scale' ? 'selected' : '' ?>>Scale (1-5)</option>
+                            <option value="boolean" <?= ($editItem['field_type'] ?? '') == 'boolean' ? 'selected' : '' ?>>Boolean (Yes/No)</option>
+                            <option value="range" <?= ($editItem['field_type'] ?? '') == 'range' ? 'selected' : '' ?>>Range (Min-Max)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group" style="grid-column: span 2;">
+                        <label>Description (Vietnamese)</label>
+                        <input type="text" name="description_vi" class="form-control"
+                               value="<?= htmlspecialchars($editItem['description_vi'] ?? '') ?>"
+                               placeholder="Mô tả ngắn gọn về preference này">
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 1rem; align-items: end;">
+                    <div class="form-group" style="flex: 1;">
+                        <label>Description (English)</label>
+                        <input type="text" name="description_en" class="form-control"
+                               value="<?= htmlspecialchars($editItem['description_en'] ?? '') ?>"
+                               placeholder="Short description of this preference">
+                    </div>
+
+                    <div class="form-group">
+                        <button type="submit" class="btn btn-primary">
                             <?= $editItem ? '💾 Update' : '➕ Add' ?>
                         </button>
                     </div>
@@ -285,20 +348,44 @@ $flash = getFlash();
                                 <th>Code</th>
                                 <th>Vietnamese Name</th>
                                 <th>English Name</th>
+                                <th>Field Type</th>
+                                <th>Options</th>
                                 <th>Weight</th>
                                 <th>Status</th>
-                                <th>Created</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($items as $pref): ?>
+                            <?php
+                                $optionsData = !empty($pref['options_config']) ? json_decode($pref['options_config'], true) : null;
+                                $optionsCount = !empty($optionsData['options']) ? count($optionsData['options']) : 0;
+                            ?>
                             <tr>
                                 <td><?= $pref['id'] ?></td>
                                 <td class="icon-display"><?= htmlspecialchars($pref['icon']) ?></td>
                                 <td><code><?= htmlspecialchars($pref['code']) ?></code></td>
-                                <td><strong><?= htmlspecialchars($pref['name_vi']) ?></strong></td>
+                                <td>
+                                    <strong><?= htmlspecialchars($pref['name_vi']) ?></strong>
+                                    <?php if (!empty($pref['description_vi'])): ?>
+                                        <br><small style="color: #6b7280;"><?= htmlspecialchars($pref['description_vi']) ?></small>
+                                    <?php endif; ?>
+                                </td>
                                 <td><?= htmlspecialchars($pref['name_en']) ?></td>
+                                <td>
+                                    <span class="field-type-badge">
+                                        <?= strtoupper($pref['field_type'] ?? 'scale') ?>
+                                    </span>
+                                </td>
+                                <td>
+                                    <?php if (($pref['field_type'] ?? 'scale') === 'enum'): ?>
+                                        <a href="?manage_options=<?= $pref['id'] ?>" class="btn btn-sm" style="background: #10b981; color: white;">
+                                            ⚙️ Options (<?= $optionsCount ?>)
+                                        </a>
+                                    <?php else: ?>
+                                        <span style="color: #9ca3af; font-size: 0.85rem;">N/A</span>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <span class="weight-indicator"><?= $pref['weight'] ?></span>
                                 </td>
@@ -307,7 +394,6 @@ $flash = getFlash();
                                         <?= $pref['is_active'] ? 'Active' : 'Inactive' ?>
                                     </span>
                                 </td>
-                                <td><?= date('M d, Y', strtotime($pref['created_at'])) ?></td>
                                 <td>
                                     <div class="actions">
                                         <a href="?edit=<?= $pref['id'] ?>" class="btn btn-primary btn-sm">Edit</a>
@@ -376,5 +462,168 @@ $flash = getFlash();
             </div>
         </div>
     </div>
+
+    <!-- Options Manager Modal -->
+    <?php if ($manageOptionsItem): ?>
+    <div class="modal-overlay" id="optionsModal" style="display: block;"></div>
+    <div class="modal-content" style="display: block;">
+        <div class="modal-header">
+            <div>
+                <h2 style="font-size: 1.5rem; font-weight: 700; color: #111827; margin-bottom: 0.5rem;">
+                    ⚙️ Manage Options: <?= htmlspecialchars($manageOptionsItem['name_vi']) ?>
+                </h2>
+                <p style="color: #6b7280; font-size: 0.9rem;">
+                    <?= htmlspecialchars($manageOptionsItem['icon']) ?> <?= htmlspecialchars($manageOptionsItem['code']) ?>
+                    · <span class="field-type-badge"><?= strtoupper($manageOptionsItem['field_type']) ?></span>
+                </p>
+            </div>
+            <a href="preferences.php" class="close-modal">✕</a>
+        </div>
+
+        <form method="POST" id="optionsForm">
+            <input type="hidden" name="action" value="update_options">
+            <input type="hidden" name="id" value="<?= $manageOptionsItem['id'] ?>">
+            <input type="hidden" name="options_config" id="optionsConfigInput">
+
+            <div id="optionsContainer">
+                <!-- Options will be rendered here by JavaScript -->
+            </div>
+
+            <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+                <button type="button" onclick="addOption()" class="btn btn-sm" style="background: #10b981; color: white;">
+                    ➕ Add New Option
+                </button>
+                <button type="submit" class="btn btn-primary">
+                    💾 Save All Options
+                </button>
+                <a href="preferences.php" class="btn btn-sm" style="background: #6b7280; color: white;">
+                    Cancel
+                </a>
+            </div>
+        </form>
+
+        <div style="margin-top: 2rem; padding: 1rem; background: #f9fafb; border-radius: 8px;">
+            <strong style="color: #111827; display: block; margin-bottom: 0.5rem;">💡 Tips:</strong>
+            <ul style="margin-left: 1.5rem; color: #6b7280; font-size: 0.9rem;">
+                <li><strong>Code:</strong> Unique identifier for each option (e.g., "early_bird", "night_owl")</li>
+                <li><strong>Vietnamese/English Name:</strong> Display text shown to users</li>
+                <li><strong>Icon:</strong> Emoji to make options more visual and engaging</li>
+                <li>Options order can be changed by editing and saving</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        // Parse initial options from PHP
+        const initialOptions = <?= json_encode($manageOptionsItem['parsed_options']['options'] ?? []) ?>;
+        let options = [...initialOptions];
+
+        function renderOptions() {
+            const container = document.getElementById('optionsContainer');
+            container.innerHTML = '';
+
+            if (options.length === 0) {
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 3rem; color: #6b7280; background: #f9fafb; border-radius: 8px; border: 2px dashed #d1d5db;">
+                        <div style="font-size: 2rem; margin-bottom: 1rem;">📝</div>
+                        <div style="font-size: 1.1rem; font-weight: 600; margin-bottom: 0.5rem;">No options yet</div>
+                        <div>Click "Add New Option" to create your first option</div>
+                    </div>
+                `;
+                return;
+            }
+
+            options.forEach((option, index) => {
+                const optionHtml = `
+                    <div class="option-item">
+                        <div class="option-item-fields">
+                            <div>
+                                <input type="text" class="form-control" placeholder="Code"
+                                       value="${escapeHtml(option.code || '')}"
+                                       onchange="updateOption(${index}, 'code', this.value)">
+                            </div>
+                            <div>
+                                <input type="text" class="form-control" placeholder="Vietnamese Name"
+                                       value="${escapeHtml(option.name_vi || '')}"
+                                       onchange="updateOption(${index}, 'name_vi', this.value)">
+                            </div>
+                            <div>
+                                <input type="text" class="form-control" placeholder="English Name"
+                                       value="${escapeHtml(option.name_en || '')}"
+                                       onchange="updateOption(${index}, 'name_en', this.value)">
+                            </div>
+                            <div>
+                                <input type="text" class="form-control" placeholder="Icon"
+                                       value="${escapeHtml(option.icon || '')}" maxlength="10"
+                                       onchange="updateOption(${index}, 'icon', this.value)">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            ${index > 0 ? `<button type="button" class="btn btn-sm btn-icon" style="background: #94a3b8; color: white;" onclick="moveOption(${index}, -1)" title="Move Up">↑</button>` : ''}
+                            ${index < options.length - 1 ? `<button type="button" class="btn btn-sm btn-icon" style="background: #94a3b8; color: white;" onclick="moveOption(${index}, 1)" title="Move Down">↓</button>` : ''}
+                            <button type="button" class="btn btn-danger btn-sm btn-icon" onclick="deleteOption(${index})" title="Delete">🗑️</button>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += optionHtml;
+            });
+        }
+
+        function updateOption(index, field, value) {
+            options[index][field] = value;
+        }
+
+        function addOption() {
+            options.push({
+                code: '',
+                name_vi: '',
+                name_en: '',
+                icon: '⭐'
+            });
+            renderOptions();
+        }
+
+        function deleteOption(index) {
+            if (confirm('Delete this option? Users with this selection will lose their preference.')) {
+                options.splice(index, 1);
+                renderOptions();
+            }
+        }
+
+        function moveOption(index, direction) {
+            const newIndex = index + direction;
+            if (newIndex >= 0 && newIndex < options.length) {
+                [options[index], options[newIndex]] = [options[newIndex], options[index]];
+                renderOptions();
+            }
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Handle form submission
+        document.getElementById('optionsForm').addEventListener('submit', function(e) {
+            // Validate options
+            const emptyOptions = options.filter(opt => !opt.code || !opt.name_vi);
+            if (emptyOptions.length > 0) {
+                e.preventDefault();
+                alert('Please fill in Code and Vietnamese Name for all options');
+                return;
+            }
+
+            // Build JSON and set hidden input
+            const optionsConfig = {
+                options: options
+            };
+            document.getElementById('optionsConfigInput').value = JSON.stringify(optionsConfig);
+        });
+
+        // Initial render
+        renderOptions();
+    </script>
+    <?php endif; ?>
 </body>
 </html>
