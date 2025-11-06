@@ -98,9 +98,13 @@ try {
 
     // Helper function to check if column exists
     function columnExists($db, $table, $column) {
-        $stmt = $db->prepare("SHOW COLUMNS FROM {$table} LIKE ?");
-        $stmt->execute([$column]);
-        return $stmt->fetch() !== false;
+        // Cannot use prepared statement for SHOW COLUMNS, need direct query
+        // But we sanitize inputs to prevent SQL injection
+        $table = preg_replace('/[^a-zA-Z0-9_]/', '', $table);
+        $column = preg_replace('/[^a-zA-Z0-9_]/', '', $column);
+
+        $result = $db->query("SHOW COLUMNS FROM `{$table}` LIKE '{$column}'");
+        return $result && $result->fetch() !== false;
     }
 
     // Check table exists
