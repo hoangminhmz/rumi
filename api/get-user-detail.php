@@ -41,11 +41,9 @@ try {
             u.drinking,
             u.guests_policy,
             u.preferences,
-            d.name as district_name,
-            c.name as city_name
+            d.name as district_name
         FROM users u
         LEFT JOIN districts d ON u.district_id = d.id
-        LEFT JOIN cities c ON d.city_id = c.id
         WHERE u.id = ? AND u.is_active = 1
     ");
 

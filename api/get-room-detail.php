@@ -38,12 +38,10 @@ try {
             r.amenities,
             r.images,
             d.name as district_name,
-            c.name as city_name,
             u.name as owner_name,
             u.phone as owner_phone
         FROM rooms r
         LEFT JOIN districts d ON r.district_id = d.id
-        LEFT JOIN cities c ON d.city_id = c.id
         LEFT JOIN users u ON r.user_id = u.id
         WHERE r.id = ? AND r.status = 'active'
     ");
