@@ -7,10 +7,13 @@
 header('Content-Type: text/html; charset=UTF-8');
 
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/../config/constants.php';
+require_once __DIR__ . '/../includes/functions.php';
 
-session_start();
+startSession();
+
 if (!isset($_SESSION['admin_logged_in']) || !$_SESSION['admin_logged_in']) {
-    die('Please login as admin first');
+    redirect(BASE_URL . '/admin/login.php');
 }
 
 $db = getDB();
