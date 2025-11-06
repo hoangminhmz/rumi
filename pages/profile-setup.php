@@ -4,6 +4,9 @@
  * Form để hoàn thiện profile sau khi đăng nhập lần đầu
  */
 
+// Set UTF-8 encoding for response
+header('Content-Type: text/html; charset=UTF-8');
+
 require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../config/constants.php';
 require_once __DIR__ . '/../includes/functions.php';
@@ -23,19 +26,26 @@ if ($userModel->hasCompleteProfile(getCurrentUserId()) && !isset($_GET['edit']))
 // Get districts
 $districts = $userModel->getDistricts();
 
-// Load lifestyle preferences from database
+// Load ALL preferences from database (not just lifestyle)
 $db = getDB();
-$lifestylePrefsStmt = $db->query("
-    SELECT code, name_vi, name_en, icon, field_type, options_config, description_vi
+$prefsStmt = $db->query("
+    SELECT code, name_vi, name_en, icon, field_type, options_config, description_vi, category
     FROM preferences_list
-    WHERE code IN ('sleep_schedule', 'work_schedule', 'drinking', 'guests_policy')
-      AND is_active = 1
-    ORDER BY weight DESC
+    WHERE is_active = 1
+    ORDER BY category ASC, weight DESC
 ");
-$lifestylePreferences = [];
-while ($pref = $lifestylePrefsStmt->fetch(PDO::FETCH_ASSOC)) {
+
+$preferences = [];
+$preferencesByCategory = [];
+while ($pref = $prefsStmt->fetch(PDO::FETCH_ASSOC)) {
     $pref['options'] = !empty($pref['options_config']) ? json_decode($pref['options_config'], true) : null;
-    $lifestylePreferences[$pref['code']] = $pref;
+    $preferences[$pref['code']] = $pref;
+
+    $category = $pref['category'] ?? 'other';
+    if (!isset($preferencesByCategory[$category])) {
+        $preferencesByCategory[$category] = [];
+    }
+    $preferencesByCategory[$category][] = $pref;
 }
 
 // Handle form submission
@@ -69,20 +79,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception(implode(', ', $errors));
         }
 
-        // Build preferences
-        $preferences = [
-            'budget_min' => (int)($_POST['budget_min'] ?? 0),
-            'budget_max' => (int)($_POST['budget_max'] ?? 0),
-            'cleanliness' => (int)($_POST['cleanliness'] ?? 3),
-            'noise_tolerance' => (int)($_POST['noise_tolerance'] ?? 3),
-            'smoking' => isset($_POST['smoking']),
-            'pets' => isset($_POST['pets']),
-            // Lifestyle preferences
-            'sleep_schedule' => $_POST['sleep_schedule'] ?? null,
-            'work_schedule' => $_POST['work_schedule'] ?? null,
-            'drinking' => $_POST['drinking'] ?? null,
-            'guests_policy' => $_POST['guests_policy'] ?? null
-        ];
+        // Build preferences dynamically from database structure
+        $userPreferences = [];
+        foreach ($preferences as $code => $pref) {
+            switch ($pref['field_type']) {
+                case 'enum':
+                    $userPreferences[$code] = $_POST[$code] ?? null;
+                    break;
+                case 'scale':
+                    $userPreferences[$code] = isset($_POST[$code]) ? (int)$_POST[$code] : 3;
+                    break;
+                case 'boolean':
+                    $userPreferences[$code] = isset($_POST[$code]);
+                    break;
+                case 'range':
+                    // Handle min/max separately
+                    if ($code === 'budget') {
+                        $userPreferences['budget_min'] = (int)($_POST['budget_min'] ?? 0);
+                        $userPreferences['budget_max'] = (int)($_POST['budget_max'] ?? 0);
+                    }
+                    break;
+            }
+        }
 
         // Update profile
         $data = [
@@ -92,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'age' => (int)$_POST['age'],
             'district_id' => (int)$_POST['district_id'],
             'bio' => sanitizeInput($_POST['bio'] ?? ''),
-            'preferences' => $preferences,
+            'preferences' => $userPreferences,
             'search_mode' => $_POST['search_mode'] ?? 'find_roommate'
         ];
 
@@ -206,81 +224,79 @@ include __DIR__ . '/../components/header.php';
 
                 <h3 style="font-size: var(--font-size-lg); margin-bottom: var(--space-3);">Preferences</h3>
 
-                <!-- Lifestyle Preferences (Dynamic) -->
-                <?php foreach ($lifestylePreferences as $code => $pref): ?>
-                    <?php if (!empty($pref['options']['options'])): ?>
+                <!-- Dynamic Preferences from Database -->
+                <?php foreach ($preferences as $code => $pref): ?>
+                    <?php
+                    $currentValue = $currentUser['preferences'][$code] ?? null;
+                    $fieldType = $pref['field_type'] ?? 'scale';
+                    ?>
+
                     <div class="form-group">
-                        <label for="<?= e($code) ?>" class="form-label">
-                            <?= e($pref['icon']) ?> <?= e($pref['name_vi']) ?>
-                        </label>
-                        <?php if (!empty($pref['description_vi'])): ?>
-                            <small class="text-secondary d-block mb-1"><?= e($pref['description_vi']) ?></small>
+                        <?php if ($fieldType === 'enum'): ?>
+                            <!-- Enum: Dropdown with options from database -->
+                            <label for="<?= e($code) ?>" class="form-label">
+                                <?= e($pref['icon']) ?> <?= e($pref['name_vi']) ?>
+                            </label>
+                            <?php if (!empty($pref['description_vi'])): ?>
+                                <small class="text-secondary d-block mb-1"><?= e($pref['description_vi']) ?></small>
+                            <?php endif; ?>
+                            <select id="<?= e($code) ?>" name="<?= e($code) ?>" class="form-control">
+                                <option value="">-- Chọn --</option>
+                                <?php if (!empty($pref['options']['options'])): ?>
+                                    <?php foreach ($pref['options']['options'] as $option): ?>
+                                        <option value="<?= e($option['code']) ?>"
+                                            <?= $currentValue === $option['code'] ? 'selected' : '' ?>>
+                                            <?= e($option['icon'] ?? '') ?> <?= e($option['name_vi']) ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </select>
+
+                        <?php elseif ($fieldType === 'scale'): ?>
+                            <!-- Scale: 1-5 dropdown -->
+                            <label for="<?= e($code) ?>" class="form-label">
+                                <?= e($pref['icon']) ?> <?= e($pref['name_vi']) ?>
+                            </label>
+                            <?php if (!empty($pref['description_vi'])): ?>
+                                <small class="text-secondary d-block mb-1"><?= e($pref['description_vi']) ?></small>
+                            <?php endif; ?>
+                            <select id="<?= e($code) ?>" name="<?= e($code) ?>" class="form-control">
+                                <?php for ($i = 1; $i <= 5; $i++): ?>
+                                    <option value="<?= $i ?>" <?= (int)$currentValue == $i || (is_null($currentValue) && $i == 3) ? 'selected' : '' ?>>
+                                        <?= $i ?> - <?= ['Rất thấp', 'Thấp', 'Trung bình', 'Cao', 'Rất cao'][$i-1] ?>
+                                    </option>
+                                <?php endfor; ?>
+                            </select>
+
+                        <?php elseif ($fieldType === 'boolean'): ?>
+                            <!-- Boolean: Checkbox -->
+                            <label style="display: flex; align-items: center; gap: var(--space-1); cursor: pointer;">
+                                <input type="checkbox" name="<?= e($code) ?>" value="1"
+                                       <?= $currentValue ? 'checked' : '' ?>>
+                                <span><?= e($pref['icon']) ?> <?= e($pref['name_vi']) ?></span>
+                            </label>
+                            <?php if (!empty($pref['description_vi'])): ?>
+                                <small class="text-secondary d-block" style="margin-left: 2rem;"><?= e($pref['description_vi']) ?></small>
+                            <?php endif; ?>
+
+                        <?php elseif ($fieldType === 'range'): ?>
+                            <!-- Range: Min/Max inputs -->
+                            <label class="form-label">
+                                <?= e($pref['icon']) ?> <?= e($pref['name_vi']) ?>
+                            </label>
+                            <?php if (!empty($pref['description_vi'])): ?>
+                                <small class="text-secondary d-block mb-1"><?= e($pref['description_vi']) ?></small>
+                            <?php endif; ?>
+                            <div class="d-flex gap-2">
+                                <input type="number" name="<?= e($code) ?>_min" class="form-control" placeholder="Tối thiểu"
+                                       value="<?= e($currentUser['preferences'][$code . '_min'] ?? '') ?>">
+                                <input type="number" name="<?= e($code) ?>_max" class="form-control" placeholder="Tối đa"
+                                       value="<?= e($currentUser['preferences'][$code . '_max'] ?? '') ?>">
+                            </div>
+
                         <?php endif; ?>
-                        <select id="<?= e($code) ?>" name="<?= e($code) ?>" class="form-control">
-                            <option value="">-- Chọn --</option>
-                            <?php foreach ($pref['options']['options'] as $option): ?>
-                                <option value="<?= e($option['code']) ?>"
-                                    <?= ($currentUser['preferences'][$code] ?? '') === $option['code'] ? 'selected' : '' ?>>
-                                    <?= e($option['icon'] ?? '') ?> <?= e($option['name_vi']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
                     </div>
-                    <?php endif; ?>
                 <?php endforeach; ?>
-
-                <!-- Budget -->
-                <div class="form-group">
-                    <label class="form-label">Ngân sách (VND/tháng)</label>
-                    <div class="d-flex gap-2">
-                        <input type="number" name="budget_min" class="form-control" placeholder="Tối thiểu"
-                               value="<?= e($currentUser['preferences']['budget_min'] ?? '') ?>">
-                        <input type="number" name="budget_max" class="form-control" placeholder="Tối đa"
-                               value="<?= e($currentUser['preferences']['budget_max'] ?? '') ?>">
-                    </div>
-                </div>
-
-                <!-- Cleanliness -->
-                <div class="form-group">
-                    <label for="cleanliness" class="form-label">Mức độ sạch sẽ</label>
-                    <select id="cleanliness" name="cleanliness" class="form-control">
-                        <?php foreach (PREFERENCE_LEVELS as $value => $label): ?>
-                        <option value="<?= $value ?>" <?= ($currentUser['preferences']['cleanliness'] ?? 3) == $value ? 'selected' : '' ?>>
-                            <?= e($label) ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <!-- Noise Tolerance -->
-                <div class="form-group">
-                    <label for="noise_tolerance" class="form-label">Dung nạp tiếng ồn</label>
-                    <select id="noise_tolerance" name="noise_tolerance" class="form-control">
-                        <?php foreach (PREFERENCE_LEVELS as $value => $label): ?>
-                        <option value="<?= $value ?>" <?= ($currentUser['preferences']['noise_tolerance'] ?? 3) == $value ? 'selected' : '' ?>>
-                            <?= e($label) ?>
-                        </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-
-                <!-- Smoking -->
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: var(--space-1); cursor: pointer;">
-                        <input type="checkbox" name="smoking" value="1"
-                               <?= ($currentUser['preferences']['smoking'] ?? false) ? 'checked' : '' ?>>
-                        <span>Tôi hút thuốc</span>
-                    </label>
-                </div>
-
-                <!-- Pets -->
-                <div class="form-group">
-                    <label style="display: flex; align-items: center; gap: var(--space-1); cursor: pointer;">
-                        <input type="checkbox" name="pets" value="1"
-                               <?= ($currentUser['preferences']['pets'] ?? false) ? 'checked' : '' ?>>
-                        <span>Tôi có/thích nuôi thú cưng</span>
-                    </label>
-                </div>
 
                 <button type="submit" class="btn btn-primary btn-block mt-4">
                     Hoàn tất và bắt đầu sử dụng RUMI

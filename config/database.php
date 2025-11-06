@@ -28,6 +28,9 @@ function getDB() {
             ];
 
             $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+
+            // Explicitly set charset for connection
+            $pdo->exec("SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci");
         } catch (PDOException $e) {
             // Log error và show user-friendly message
             error_log("Database Connection Error: " . $e->getMessage());
