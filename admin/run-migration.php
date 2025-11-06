@@ -127,9 +127,9 @@ try {
         echo "<span class='status-info'>✓ Preferences table has {$count} records</span>\n\n";
     }
 
-    // Run migration 1: Add columns (use v2 - safer version)
+    // Run migration 1: Add columns (use v3 - safest version without AFTER clause)
     echo "<span class='status-info'>📦 Running Migration 1: Add preference options config...</span>\n";
-    $migration1 = file_get_contents(__DIR__ . '/../database/migrations/add_preference_options_config_v2.sql');
+    $migration1 = file_get_contents(__DIR__ . '/../database/migrations/add_preference_options_config_v3.sql');
 
     $statements = array_filter(
         array_map('trim', explode(';', $migration1)),

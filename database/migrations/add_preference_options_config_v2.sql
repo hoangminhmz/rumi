@@ -13,11 +13,12 @@ ALTER TABLE preferences_list
 ADD COLUMN options_config TEXT NULL
 AFTER field_type;
 
--- Step 3: Add description columns
+-- Step 3: Add description columns (split into separate files for safer execution)
 ALTER TABLE preferences_list
 ADD COLUMN description_vi TEXT NULL
 AFTER options_config;
 
+-- Step 4: Add description_en column (runs after description_vi exists)
 ALTER TABLE preferences_list
 ADD COLUMN description_en TEXT NULL
 AFTER description_vi;
