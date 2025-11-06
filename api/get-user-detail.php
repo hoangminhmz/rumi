@@ -23,7 +23,7 @@ try {
         throw new Exception('User ID is required');
     }
 
-    $db = getDBConnection();
+    $db = getDB();
 
     // Get complete user data including all lifestyle fields
     $stmt = $db->prepare("

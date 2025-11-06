@@ -23,7 +23,7 @@ try {
         throw new Exception('Room ID is required');
     }
 
-    $db = getDBConnection();
+    $db = getDB();
 
     // Get complete room data including all amenities
     $stmt = $db->prepare("
