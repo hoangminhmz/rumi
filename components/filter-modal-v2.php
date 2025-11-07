@@ -555,26 +555,28 @@ require_once __DIR__ . '/filter-lifestyle-dynamic.php';
 // Mapbox Access Token (replace with your token)
 const MAPBOX_TOKEN = 'pk.eyJ1IjoiaG9hbmdtaW5obXoiLCJhIjoiY2xldzc0MXNzMDN4MTNwcGs2aWhnaHFxZiJ9.SdmGxY_wgOBXGv8PzmMB3w';
 
-// Filter state
+// Dynamic lifestyle preference codes from database
+const LIFESTYLE_PREFS = <?= json_encode(array_map(function($p) {
+    return ['code' => $p['code'], 'type' => $p['field_type']];
+}, $dynamicLifestylePrefs)) ?>;
+
+// Filter state - Initialize dynamically
 let filterState = {
     budgetMin: <?= $userPreferences['budget_min'] ?? 0 ?>,
     budgetMax: <?= $userPreferences['budget_max'] ?? 10000000 ?>,
     district: '',
     location: null,
     distance: 5,
-    sleep: '',
-    work: '',
-    cleanliness: null,
-    noise: null,
-    smoking: '',
-    drinking: '',
-    pets: '',
-    guests: '',
     roomType: '',
     amenities: [],
     moveInFrom: '',
     moveInTo: ''
 };
+
+// Add dynamic lifestyle preferences to filterState
+LIFESTYLE_PREFS.forEach(pref => {
+    filterState[pref.code] = (pref.type === 'scale') ? null : '';
+});
 
 // Open filter modal
 function openFilterModal() {
@@ -629,7 +631,9 @@ function updateButtonStates() {
         if (!filterType) return;
 
         let isActive = false;
-        if (filterType === 'cleanliness' || filterType === 'noise') {
+
+        // Check if this is a scale-type preference (has .filter-scale-btn class)
+        if (btn.classList.contains('filter-scale-btn')) {
             isActive = filterState[filterType] === parseInt(value);
         } else {
             isActive = filterState[filterType] === value;
@@ -647,10 +651,11 @@ document.addEventListener('click', (e) => {
     const filterType = btn.dataset.filter;
     const value = btn.dataset.value;
 
-    if (filterType === 'cleanliness' || filterType === 'noise') {
+    // Handle scale-type buttons (always set to clicked value)
+    if (btn.classList.contains('filter-scale-btn')) {
         filterState[filterType] = parseInt(value);
     } else {
-        // Toggle: if already selected, deselect (set to empty)
+        // Handle option buttons (toggle: if already selected, deselect)
         if (filterState[filterType] === value) {
             filterState[filterType] = '';
         } else {
@@ -759,15 +764,13 @@ function applyFilters() {
         params.set('distance', filterState.distance);
     }
 
-    // Lifestyle
-    if (filterState.sleep) params.set('sleep', filterState.sleep);
-    if (filterState.work) params.set('work', filterState.work);
-    if (filterState.cleanliness) params.set('cleanliness', filterState.cleanliness);
-    if (filterState.noise) params.set('noise', filterState.noise);
-    if (filterState.smoking) params.set('smoking', filterState.smoking);
-    if (filterState.drinking) params.set('drinking', filterState.drinking);
-    if (filterState.pets) params.set('pets', filterState.pets);
-    if (filterState.guests) params.set('guests', filterState.guests);
+    // Lifestyle - Dynamic preferences
+    LIFESTYLE_PREFS.forEach(pref => {
+        const value = filterState[pref.code];
+        if (value !== null && value !== '' && value !== undefined) {
+            params.set(pref.code, value);
+        }
+    });
 
     // Room details
     if (filterState.roomType) params.set('room_type', filterState.roomType);
