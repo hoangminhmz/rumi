@@ -34,15 +34,41 @@ try {
     // Exchange code for access token
     $tokenData = getZaloAccessToken($_GET['code']);
 
-    if (!$tokenData || !isset($tokenData['access_token'])) {
-        throw new Exception('Không thể lấy access token');
+    // Debug logging
+    error_log("Zalo token response: " . json_encode($tokenData));
+
+    if (!$tokenData) {
+        throw new Exception('Không nhận được response từ Zalo API. Kiểm tra App ID và App Secret.');
+    }
+
+    // Check for error in token response
+    if (isset($tokenData['error'])) {
+        $errorMsg = $tokenData['error_description'] ?? $tokenData['error'] ?? 'Unknown error';
+        throw new Exception("Zalo API error: " . $errorMsg);
+    }
+
+    if (!isset($tokenData['access_token'])) {
+        throw new Exception('Access token không tồn tại trong response. Response: ' . json_encode($tokenData));
     }
 
     // Get user info from Zalo
     $zaloUser = getZaloUserInfo($tokenData['access_token']);
 
-    if (!$zaloUser || !isset($zaloUser['id'])) {
-        throw new Exception('Không thể lấy thông tin user từ Zalo');
+    // Debug logging
+    error_log("Zalo user info response: " . json_encode($zaloUser));
+
+    if (!$zaloUser) {
+        throw new Exception('Không nhận được thông tin user từ Zalo Graph API');
+    }
+
+    // Check for error in user info response
+    if (isset($zaloUser['error'])) {
+        $errorMsg = $zaloUser['error']['message'] ?? $zaloUser['error'] ?? 'Unknown error';
+        throw new Exception("Zalo Graph API error: " . $errorMsg);
+    }
+
+    if (!isset($zaloUser['id'])) {
+        throw new Exception('User ID không tồn tại trong response. Response: ' . json_encode($zaloUser));
     }
 
     // Create or update user in database
@@ -50,12 +76,15 @@ try {
     $userId = $userModel->createOrUpdateFromZalo($zaloUser);
 
     if (!$userId) {
-        throw new Exception('Không thể tạo user trong database');
+        throw new Exception('Không thể tạo user trong database. Kiểm tra database connection và schema.');
     }
 
     // Log user in
     $_SESSION['user_id'] = $userId;
     $_SESSION['zalo_id'] = $zaloUser['id'];
+
+    // Log successful login
+    error_log("Zalo login successful for user ID: " . $userId);
 
     // Check if user needs to complete profile
     if (!$userModel->hasCompleteProfile($userId)) {
@@ -67,7 +96,22 @@ try {
     }
 
 } catch (Exception $e) {
+    // Detailed error logging
     error_log("Zalo login error: " . $e->getMessage());
-    setFlash('error', 'Đăng nhập thất bại: ' . $e->getMessage());
+    error_log("Error trace: " . $e->getTraceAsString());
+
+    // User-friendly error message
+    $userMessage = 'Đăng nhập thất bại. ';
+
+    // Add specific guidance based on error
+    if (strpos($e->getMessage(), 'App ID') !== false || strpos($e->getMessage(), 'App Secret') !== false) {
+        $userMessage .= 'Vui lòng kiểm tra cấu hình Zalo App. Xem hướng dẫn tại ZALO-LOGIN-SETUP.md';
+    } elseif (strpos($e->getMessage(), 'database') !== false) {
+        $userMessage .= 'Lỗi kết nối database. Vui lòng liên hệ admin.';
+    } else {
+        $userMessage .= $e->getMessage();
+    }
+
+    setFlash('error', $userMessage);
     redirect(BASE_URL . '/pages/login.php');
 }

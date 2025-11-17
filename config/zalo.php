@@ -86,10 +86,26 @@ function getZaloAccessToken($code) {
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true); // Better security
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
 
     $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
     curl_close($ch);
+
+    // Log request for debugging
+    error_log("Zalo Access Token Request - HTTP Code: $httpCode, URL: $url");
+
+    if ($error) {
+        error_log("cURL Error: " . $error);
+        return null;
+    }
+
+    if ($httpCode !== 200) {
+        error_log("Zalo API returned HTTP $httpCode: " . $response);
+    }
 
     if ($response) {
         return json_decode($response, true);
@@ -108,10 +124,29 @@ function getZaloUserInfo($access_token) {
 
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true); // Better security
+    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'User-Agent: RUMI/1.0'
+    ]);
 
     $response = curl_exec($ch);
+    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
     curl_close($ch);
+
+    // Log request for debugging
+    error_log("Zalo User Info Request - HTTP Code: $httpCode");
+
+    if ($error) {
+        error_log("cURL Error: " . $error);
+        return null;
+    }
+
+    if ($httpCode !== 200) {
+        error_log("Zalo Graph API returned HTTP $httpCode: " . $response);
+    }
 
     if ($response) {
         return json_decode($response, true);
