@@ -53,8 +53,23 @@ try {
 
     // Check for error in token response
     if (isset($tokenData['error'])) {
-        $errorMsg = $tokenData['error_description'] ?? $tokenData['error'] ?? 'Unknown error';
-        throw new Exception("Zalo API error: " . $errorMsg);
+        $errorCode = $tokenData['error'] ?? 'unknown';
+        $errorMsg = $tokenData['error_description'] ?? $tokenData['message'] ?? 'Unknown error';
+        error_log("Zalo API Error Code: $errorCode, Message: $errorMsg");
+
+        // Map common Zalo error codes to user-friendly messages
+        $userMsg = "Zalo API Error ($errorCode): $errorMsg. ";
+        if ($errorCode == -14 || $errorCode == '-14') {
+            $userMsg .= "App Secret không đúng. Kiểm tra lại config/zalo.php";
+        } elseif ($errorCode == -216 || $errorCode == '-216') {
+            $userMsg .= "Authorization code đã hết hạn hoặc đã được sử dụng. Vui lòng thử đăng nhập lại.";
+        } elseif ($errorCode == -201 || $errorCode == '-201') {
+            $userMsg .= "App ID không đúng. Kiểm tra lại config/zalo.php";
+        } elseif ($errorCode == -10007 || $errorCode == '-10007') {
+            $userMsg .= "Callback URL không khớp. Kiểm tra cấu hình trong Zalo Developer Portal.";
+        }
+
+        throw new Exception($userMsg);
     }
 
     if (!isset($tokenData['access_token'])) {
