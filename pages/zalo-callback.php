@@ -12,21 +12,31 @@ require_once __DIR__ . '/../includes/User.php';
 
 startSession();
 
+// Log callback start
+error_log("========== Zalo Callback Start ==========");
+error_log("GET params: " . json_encode($_GET));
+error_log("Session ID: " . session_id());
+error_log("Session data: " . json_encode($_SESSION));
+
 // Check for errors
 if (isset($_GET['error'])) {
-    setFlash('error', 'Đăng nhập thất bại: ' . $_GET['error_description']);
+    error_log("Zalo returned error: " . $_GET['error']);
+    setFlash('error', 'Đăng nhập thất bại: ' . ($_GET['error_description'] ?? $_GET['error']));
     redirect(BASE_URL . '/pages/login.php');
 }
 
 // Check for authorization code
 if (!isset($_GET['code'])) {
+    error_log("Missing authorization code in callback");
     setFlash('error', 'Thiếu authorization code');
     redirect(BASE_URL . '/pages/login.php');
 }
 
 // Verify state token (CSRF protection)
+error_log("Verifying state token. Received: " . ($_GET['state'] ?? 'none') . ", Expected: " . ($_SESSION['zalo_state'] ?? 'none'));
 if (!isset($_GET['state']) || !verifyStateToken($_GET['state'])) {
-    setFlash('error', 'Invalid state token');
+    error_log("State token verification failed!");
+    setFlash('error', 'Invalid state token (CSRF protection). Vui lòng thử đăng nhập lại.');
     redirect(BASE_URL . '/pages/login.php');
 }
 

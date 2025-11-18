@@ -47,6 +47,8 @@ function generateStateToken() {
     $state = bin2hex(random_bytes(16));
     $_SESSION['zalo_state'] = $state;
 
+    error_log("Generated state token: " . $state . " (Session ID: " . session_id() . ")");
+
     return $state;
 }
 
@@ -60,12 +62,24 @@ function verifyStateToken($state) {
         session_start();
     }
 
+    error_log("verifyStateToken called - Session ID: " . session_id());
+    error_log("Received state: " . $state);
+    error_log("Session state: " . ($_SESSION['zalo_state'] ?? 'NOT SET'));
+
     if (!isset($_SESSION['zalo_state'])) {
+        error_log("❌ Session state not found!");
         return false;
     }
 
-    $valid = hash_equals($_SESSION['zalo_state'], $state);
-    unset($_SESSION['zalo_state']);
+    $sessionState = $_SESSION['zalo_state'];
+    $valid = hash_equals($sessionState, $state);
+
+    error_log("State comparison: " . ($valid ? '✓ MATCH' : '✗ MISMATCH'));
+
+    // Only unset if valid to allow retry
+    if ($valid) {
+        unset($_SESSION['zalo_state']);
+    }
 
     return $valid;
 }

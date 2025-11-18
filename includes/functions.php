@@ -10,8 +10,21 @@
 function startSession() {
     if (session_status() === PHP_SESSION_NONE) {
         session_name(SESSION_NAME);
-        session_set_cookie_params(SESSION_LIFETIME);
+
+        // Set cookie params with proper configuration
+        session_set_cookie_params([
+            'lifetime' => SESSION_LIFETIME,
+            'path' => '/rummi/',  // Match your BASE_URL path
+            'domain' => '',  // Empty = current domain
+            'secure' => isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on',  // True if HTTPS
+            'httponly' => true,  // Prevent JavaScript access
+            'samesite' => 'Lax'  // CSRF protection
+        ]);
+
         session_start();
+
+        // Log session start for debugging
+        error_log("Session started - ID: " . session_id() . ", Name: " . session_name());
     }
 }
 
